@@ -394,7 +394,7 @@ button{ font:inherit; color:inherit; border:0; background:none; cursor:pointer; 
 }
 .score-ring .num{
   font-size:clamp(42px,8vw,64px); font-weight:700; letter-spacing:-.04em; line-height:1;
-  font-variant-numeric:tabular-nums;
+  /* proportional figures — tabular-nums makes a display-size number look loose */
 }
 .score-ring .num i{ font-style:normal; font-size:.44em; color:var(--text-dim); }
 .score-ring .lbl{ font-family:var(--mono); font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--text-faint); }

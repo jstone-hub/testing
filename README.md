@@ -5,8 +5,15 @@ deck of simulated alerts and decide which are **really exploitable** and which a
 **noise** — the point being that CVSS severity alone is a bad signal, and reachability
 is what matters.
 
-Everything lives in **one self-contained file**: `signal-vs-noise.html`.
-No build step, no dependencies, no network. Double-click it, or serve the folder.
+Two self-contained files, no build step, no dependencies, no network:
+
+| File | What it is |
+| --- | --- |
+| `signal-vs-noise.html` | the game itself — this is the only file the booth strictly needs |
+| `index.html` | a landing page that explains the game and launches it in an overlay |
+
+Double-click either one, or serve the folder (`python3 -m http.server`) and the
+landing page comes up at `/`.
 
 ---
 
@@ -14,6 +21,9 @@ No build step, no dependencies, no network. Double-click it, or serve the folder
 
 **Player tablet** — open `signal-vs-noise.html` in the browser and put it in
 fullscreen / kiosk mode. Works in portrait or landscape, touch or mouse.
+(Open `index.html` instead if you want the explainer page in front of the game —
+its **Play** button runs the game full-bleed in an overlay, and **Close** resets it
+for the next player.)
 
 **Second screen (leaderboard)** — open `signal-vs-noise.html#board` in a second
 window or on a second display. It opens straight into large-type "booth display"
@@ -104,6 +114,23 @@ beats a 94% over 15), then by who got there first.
 
 Name and email on the end screen are optional and stay on the device — nothing is sent
 anywhere. Booth staff can wipe the board with **Clear** on the leaderboard screen.
+
+---
+
+## The landing page
+
+`index.html` is a standalone marketing/explainer page using the same design tokens as
+the game. It covers the pitch (severity vs. reachability, shown with two real cards
+from the deck that a CVSS sort gets backwards), the ~92% noise-reduction figure, what
+a round involves, and how to run it at a booth.
+
+It's independent of the game — you can host it on its own, drop it, or lift sections
+out of it. The only coupling is the relative link to `signal-vs-noise.html`, so keep
+the two files in the same directory.
+
+The **92% figure** is presented as an Endor Labs claim and the proportion bar is drawn
+to exactly that ratio (920 noise / 80 reachable per 1,000). Confirm the number against
+current marketing before the page goes anywhere public.
 
 ---
 

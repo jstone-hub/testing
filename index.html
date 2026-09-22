@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Signal vs. Noise — Endor Labs</title>
+<meta name="description" content="A 60-second vulnerability triage game. Tell the real, exploitable risks from the noise — and find out why severity alone is a bad signal.">
+<style>
+/* ============================================================================
+   Landing page for the "Signal vs. Noise" booth game.
+   Shares the game's design tokens. Self-contained, no dependencies.
+   ========================================================================= */
+
+:root{
+  --bg:          #06070d;
+  --bg-2:        #0b0d18;
+  --surface:     #101322;
+  --surface-2:   #151928;
+  --line:        rgba(255,255,255,.09);
+  --line-strong: rgba(255,255,255,.16);
+  --text:        #eef0f7;
+  --text-dim:    #9aa2bd;
+  --text-faint:  #6b7492;
+
+  --accent:      #7b61ff;
+  --accent-2:    #4c8dff;
+  --accent-soft: rgba(123,97,255,.16);
+
+  --fix:         #2ee6a8;
+  --ignore:      #ff5470;
+
+  --crit:        #ff4d6a;
+  --high:        #ff8a3d;
+  --med:         #ffc53d;
+  --low:         #4ecdc4;
+
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", "Fira Code", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --gut: clamp(18px, 4vw, 40px);
+  --maxw: 1120px;
+}
+
+*{ box-sizing:border-box; }
+html{ scroll-behavior:smooth; }
+body{
+  margin:0; background:var(--bg); color:var(--text); font-family:var(--sans);
+  -webkit-font-smoothing:antialiased; overflow-x:hidden; line-height:1.5;
+}
+body::before{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(1200px 780px at 15% -12%, rgba(123,97,255,.24), transparent 62%),
+    radial-gradient(980px 660px at 88% 4%,   rgba(76,141,255,.15), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 62%);
+}
+body::after{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.32;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.028) 1px, transparent 1px);
+  background-size:58px 58px;
+  mask-image:radial-gradient(ellipse 80% 55% at 50% 12%, #000 25%, transparent 100%);
+  -webkit-mask-image:radial-gradient(ellipse 80% 55% at 50% 12%, #000 25%, transparent 100%);
+}
+main, header, footer{ position:relative; z-index:1; }
+
+.wrap{ width:100%; max-width:var(--maxw); margin:0 auto; padding:0 var(--gut); }
+
+/* ---------------- shared ---------------- */
+.eyebrow{
+  font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--accent);
+}
+h2{
+  margin:0; font-size:clamp(27px,4.2vw,44px); font-weight:700;
+  letter-spacing:-.032em; line-height:1.1;
+}
+h3{ margin:0; font-size:clamp(16px,2vw,19px); font-weight:650; letter-spacing:-.012em; }
+p{ margin:0; }
+.lead{ color:var(--text-dim); font-size:clamp(15px,1.8vw,18px); line-height:1.6; max-width:60ch; }
+.mono{ font-family:var(--mono); }
+code{
+  font-family:var(--mono); font-size:.88em;
+  background:rgba(123,97,255,.13); color:#c9bcff;
+  padding:.14em .42em; border-radius:5px; border:1px solid rgba(123,97,255,.2);
+}
+
+a.btn, button.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:9px;
+  padding:14px 24px; border-radius:13px; text-decoration:none;
+  font:inherit; font-weight:600; font-size:15px; color:var(--text);
+  border:1px solid var(--line-strong); background:rgba(255,255,255,.045);
+  cursor:pointer;
+  transition:transform .12s ease, background .18s ease, border-color .18s ease, box-shadow .2s ease;
+}
+.btn:hover{ background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.27); }
+.btn:active{ transform:scale(.975); }
+/* needs a type selector to outrank `a.btn` / `button.btn` above */
+a.btn-primary, button.btn-primary{
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color:transparent; color:#fff;
+  box-shadow:0 10px 32px rgba(103,86,255,.4), inset 0 0 0 1px rgba(255,255,255,.1);
+}
+a.btn-primary:hover, button.btn-primary:hover{
+  background:linear-gradient(135deg,#8a73ff,#5d98ff); border-color:transparent;
+}
+.btn-lg{ padding:18px 34px; font-size:17px; border-radius:15px; }
+.btn:focus-visible, a:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
+
+/* ---------------- nav ---------------- */
+header{
+  position:sticky; top:0; z-index:50;
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  background:rgba(6,7,13,.72); border-bottom:1px solid transparent;
+  transition:border-color .25s ease, background .25s ease;
+}
+header.stuck{ border-bottom-color:var(--line); background:rgba(6,7,13,.88); }
+.nav{ display:flex; align-items:center; gap:16px; height:66px; }
+.brand{ display:flex; align-items:center; gap:11px; text-decoration:none; color:inherit; }
+.brand-mark{
+  width:28px; height:28px; flex:none; border-radius:8px;
+  background:linear-gradient(140deg, var(--accent), var(--accent-2));
+  position:relative;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14), 0 6px 20px rgba(123,97,255,.38);
+}
+.brand-mark::after{
+  content:""; position:absolute; inset:7px; border-radius:3px;
+  border:2px solid rgba(255,255,255,.92);
+  border-right-color:transparent; border-bottom-color:transparent;
+  transform:rotate(45deg);
+}
+.brand-name{ font-weight:650; font-size:15px; letter-spacing:-.01em; white-space:nowrap; }
+.brand-name span{ color:var(--text-faint); font-weight:450; }
+.nav-links{ display:flex; gap:22px; margin-left:auto; align-items:center; }
+.nav-links a{
+  color:var(--text-dim); text-decoration:none; font-size:14px; font-weight:500;
+  transition:color .18s ease;
+}
+.nav-links a:hover{ color:var(--text); }
+.nav .btn{ padding:10px 20px; font-size:14px; }
+@media (max-width:720px){
+  .nav-links a.hide-sm{ display:none; }
+  .nav-links{ gap:14px; }
+}
+@media (max-width:620px){
+  .brand-name span{ display:none; }   /* keep just "Endor Labs" */
+  .nav{ gap:12px; }
+}
+@media (max-width:470px){
+  .nav-links a{ display:none; }       /* Play is the only nav action; footer has the rest */
+}
+
+/* ---------------- hero ---------------- */
+.hero{ padding:clamp(48px,9vh,104px) 0 clamp(40px,7vh,72px); }
+.hero-grid{
+  display:grid; gap:clamp(36px,6vw,64px);
+  grid-template-columns:minmax(0,1.04fr) minmax(0,.96fr);
+  align-items:center;
+}
+@media (max-width:900px){ .hero-grid{ grid-template-columns:1fr; } }
+
+.hero h1{
+  margin:18px 0 0; font-weight:700; letter-spacing:-.04em; line-height:.94;
+  font-size:clamp(46px,8vw,84px);
+}
+.hero h1 .sig{
+  background:linear-gradient(100deg,#fff 12%, #c3b6ff 58%, #7ea7ff 98%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.hero h1 .vs{
+  display:block; font-size:.235em; letter-spacing:.4em; text-transform:uppercase;
+  color:var(--text-faint); font-weight:500; margin:.36em 0;
+}
+.hero h1 .noise{ color:#3d4460; }
+.hero .lead{ margin-top:22px; }
+.hero-cta{ display:flex; gap:12px; flex-wrap:wrap; margin-top:30px; }
+.hero-meta{
+  display:flex; gap:8px 20px; flex-wrap:wrap; margin-top:24px;
+  font-family:var(--mono); font-size:11px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--text-faint);
+}
+.hero-meta span{ display:flex; align-items:center; gap:7px; }
+.hero-meta span::before{
+  content:""; width:5px; height:5px; border-radius:50%; background:var(--accent);
+  box-shadow:0 0 9px var(--accent);
+}
+
+/* card stack visual — the last card is in flow and sets the height; the two
+   empty ones behind stretch to match it and peek out below */
+.stack{ position:relative; }
+.stack .pcard{ position:absolute; inset:0; }
+.stack .pcard:last-child{ position:relative; }
+.stack .pcard:nth-child(1){ transform:translateY(30px) scaleX(.9) rotate(-2.4deg); opacity:.5; filter:brightness(.5); }
+.stack .pcard:nth-child(2){ transform:translateY(15px) scaleX(.95) rotate(1.6deg); opacity:.8; filter:brightness(.72); }
+.stack .pcard:last-child{ transform:none; }
+
+/* ---------------- preview card ---------------- */
+.pcard{
+  display:flex; flex-direction:column; gap:13px;
+  padding:clamp(18px,2.4vw,26px); border-radius:19px;
+  background:linear-gradient(168deg, var(--surface-2), #131727 60%);
+  border:1px solid var(--line-strong);
+  box-shadow:0 26px 68px -20px rgba(0,0,0,.85), inset 0 0 0 1px rgba(255,255,255,.035);
+}
+.pcard-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.eco{
+  font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--text-faint); padding:5px 9px; border-radius:7px;
+  border:1px solid var(--line); background:rgba(255,255,255,.03);
+}
+.badge{
+  font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.11em;
+  text-transform:uppercase; padding:6px 11px; border-radius:7px; white-space:nowrap;
+}
+.sev-critical{ color:var(--crit); background:rgba(255,77,106,.13); border:1px solid rgba(255,77,106,.42); }
+.sev-high    { color:var(--high); background:rgba(255,138,61,.13); border:1px solid rgba(255,138,61,.42); }
+.sev-medium  { color:var(--med);  background:rgba(255,197,61,.12); border:1px solid rgba(255,197,61,.4); }
+.sev-low     { color:var(--low);  background:rgba(78,205,196,.12); border:1px solid rgba(78,205,196,.4); }
+
+.pkg{
+  margin:0; font-family:var(--mono); font-weight:600; letter-spacing:-.015em;
+  font-size:clamp(18px,2.4vw,25px); line-height:1.15; word-break:break-word;
+}
+.pkg .ver{ color:var(--text-faint); font-weight:400; }
+.cve{
+  font-family:var(--mono); font-size:12px; letter-spacing:.13em; color:var(--accent); margin-top:-6px;
+}
+.pdesc{ font-size:clamp(14px,1.6vw,16px); line-height:1.5; }
+
+/* CVSS meter — fill carries severity, track is the same ramp one step down */
+.meter{ display:flex; flex-direction:column; gap:6px; }
+.meter-row{
+  display:flex; align-items:baseline; justify-content:space-between;
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.17em; text-transform:uppercase;
+  color:var(--text-faint);
+}
+.meter-row b{ font-size:12.5px; letter-spacing:.04em; color:var(--text-dim); font-weight:600; font-variant-numeric:tabular-nums; }
+.meter-track{ height:4px; border-radius:99px; background:rgba(255,255,255,.07); overflow:hidden; }
+.meter-track i{ display:block; height:100%; border-radius:99px; }
+.mf-critical{ background:var(--crit); box-shadow:0 0 12px rgba(255,77,106,.6); }
+.mf-high    { background:var(--high); box-shadow:0 0 12px rgba(255,138,61,.5); }
+.mf-medium  { background:var(--med);  box-shadow:0 0 12px rgba(255,197,61,.45); }
+.mf-low     { background:var(--low);  box-shadow:0 0 12px rgba(78,205,196,.45); }
+
+.ctx{
+  border-radius:12px; padding:13px 15px;
+  background:rgba(123,97,255,.07); border:1px solid rgba(123,97,255,.22);
+}
+.ctx-label{
+  font-family:var(--mono); font-size:9px; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:6px;
+}
+.ctx p{ font-size:14px; line-height:1.5; color:var(--text-dim); }
+
+.verdict{
+  display:flex; align-items:center; gap:9px; margin-top:2px;
+  padding:11px 14px; border-radius:12px; font-size:14px; line-height:1.45;
+}
+.verdict b{ font-weight:700; white-space:nowrap; }
+.verdict.ignore{ background:rgba(255,84,112,.1); border:1px solid rgba(255,84,112,.32); color:#ffc9d3; }
+.verdict.ignore b{ color:var(--ignore); }
+.verdict.fix{ background:rgba(46,230,168,.1); border:1px solid rgba(46,230,168,.32); color:#c2ffe9; }
+.verdict.fix b{ color:var(--fix); }
+.vmark{
+  width:22px; height:22px; border-radius:50%; flex:none; display:grid; place-items:center;
+  font-size:12px; font-weight:800;
+}
+.verdict.ignore .vmark{ background:var(--ignore); color:#2a0410; }
+.verdict.fix .vmark{ background:var(--fix); color:#04110c; }
+
+/* ---------------- sections ---------------- */
+section{ padding:clamp(52px,9vh,96px) 0; }
+.sec-head{ display:flex; flex-direction:column; gap:14px; max-width:68ch; }
+
+/* stat tiles */
+.tiles{
+  display:grid; gap:14px; margin-top:38px;
+  grid-template-columns:repeat(auto-fit, minmax(210px,1fr));
+}
+.tile{
+  padding:22px 24px; border-radius:16px;
+  border:1px solid var(--line); background:rgba(255,255,255,.032);
+}
+.tile .k{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.17em; text-transform:uppercase;
+  color:var(--text-faint);
+}
+.tile .v{ font-size:30px; font-weight:700; letter-spacing:-.03em; margin-top:8px; line-height:1; }
+.tile .d{ font-size:13.5px; color:var(--text-dim); margin-top:9px; line-height:1.5; }
+
+/* the two-trap comparison */
+.traps{
+  display:grid; gap:clamp(16px,2.4vw,24px); margin-top:40px;
+  grid-template-columns:repeat(auto-fit, minmax(310px,1fr));
+}
+.trap-cap{
+  display:flex; align-items:center; gap:10px; margin-bottom:14px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.17em; text-transform:uppercase;
+  color:var(--text-faint);
+}
+.trap-cap::after{ content:""; flex:1; height:1px; background:var(--line); }
+
+/* the noise figure */
+.figure{
+  margin-top:40px; padding:clamp(24px,3.4vw,38px); border-radius:20px;
+  border:1px solid rgba(123,97,255,.26);
+  background:linear-gradient(135deg, rgba(123,97,255,.1), rgba(76,141,255,.05));
+}
+.fig-grid{ display:grid; gap:clamp(24px,4vw,48px); grid-template-columns:auto minmax(0,1fr); align-items:center; }
+@media (max-width:760px){ .fig-grid{ grid-template-columns:1fr; } }
+.hero-fig{
+  font-size:clamp(56px,10vw,92px); font-weight:700; letter-spacing:-.045em; line-height:.9;
+  background:linear-gradient(140deg,#fff, #b9a9ff 70%, #7ea7ff);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  /* proportional figures: tabular-nums makes a display-size number look loose */
+}
+.hero-fig-lbl{
+  margin-top:12px; font-size:14px; color:var(--text-dim); line-height:1.5; max-width:23ch;
+}
+.bar-head{
+  display:flex; align-items:flex-end; justify-content:space-between; gap:16px;
+  margin-bottom:11px;
+}
+.bar-head .l, .bar-head .r{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+.bar-head .r{ text-align:right; align-items:flex-end; }
+.bar-head .n{ font-size:19px; font-weight:650; letter-spacing:-.02em; }
+.bar-head .t{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.15em; text-transform:uppercase;
+  color:var(--text-faint); white-space:nowrap;
+}
+/* the full labels wrap into each other on a phone — trim them instead */
+@media (max-width:620px){ .bar-head .xs{ display:none; } }
+.bar-head .r .n{ color:var(--text); }
+/* stacked proportion bar: 2px surface gap separates the segments, no borders */
+.propbar{ display:flex; gap:2px; height:14px; }
+.propbar .seg{ height:100%; }
+.propbar .noise{
+  flex:920 1 0; background:rgba(255,255,255,.1);
+  border-radius:4px 0 0 4px;
+}
+.propbar .sig{
+  flex:80 1 0; border-radius:0 4px 4px 0;
+  background:linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow:0 0 18px rgba(123,97,255,.55);
+}
+.bar-foot{
+  margin-top:12px; font-size:13px; color:var(--text-faint); line-height:1.55;
+}
+
+/* steps */
+.steps{
+  display:grid; gap:14px; margin-top:38px; counter-reset:s;
+  grid-template-columns:repeat(auto-fit, minmax(250px,1fr));
+}
+.step{
+  padding:24px; border-radius:16px; border:1px solid var(--line);
+  background:rgba(255,255,255,.032);
+}
+.step::before{
+  counter-increment:s; content:counter(s);
+  display:grid; place-items:center; width:28px; height:28px; border-radius:9px;
+  font-family:var(--mono); font-size:13px; font-weight:700; color:var(--accent);
+  background:var(--accent-soft); border:1px solid rgba(123,97,255,.3);
+  margin-bottom:15px;
+}
+.step h3{ margin-bottom:8px; }
+.step p{ font-size:14px; color:var(--text-dim); line-height:1.6; }
+.step p + p{ margin-top:9px; }
+
+/* final cta */
+.cta{
+  margin:clamp(40px,7vh,72px) 0 0;
+  padding:clamp(34px,5.5vw,62px) clamp(24px,4vw,48px);
+  border-radius:24px; text-align:center;
+  border:1px solid rgba(123,97,255,.3);
+  background:
+    radial-gradient(700px 300px at 50% 0%, rgba(123,97,255,.22), transparent 70%),
+    linear-gradient(160deg, rgba(123,97,255,.1), rgba(76,141,255,.05));
+}
+.cta h2{ max-width:20ch; margin:14px auto 0; }
+.cta .lead{ margin:16px auto 0; text-align:center; }
+.cta-row{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:30px; }
+
+/* footer */
+footer{ border-top:1px solid var(--line); margin-top:clamp(48px,8vh,88px); padding:34px 0 46px; }
+.foot{ display:flex; gap:26px; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; }
+.foot-links{ display:flex; gap:20px; flex-wrap:wrap; }
+.foot-links a{ color:var(--text-dim); text-decoration:none; font-size:13.5px; }
+.foot-links a:hover{ color:var(--text); }
+.disclaimer{
+  font-family:var(--mono); font-size:10.5px; line-height:1.7; color:var(--text-faint);
+  max-width:64ch; letter-spacing:.015em;
+}
+
+/* ---------------- play overlay ---------------- */
+#play{
+  position:fixed; inset:0; z-index:100; display:none;
+  background:rgba(4,5,10,.92);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  padding:clamp(0px,1.6vw,20px);
+}
+#play.open{ display:flex; flex-direction:column; gap:10px; animation:fade .22s ease both; }
+@keyframes fade{ from{ opacity:0 } to{ opacity:1 } }
+.play-bar{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:0 4px; flex:none;
+}
+.play-bar .t{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.17em; text-transform:uppercase;
+  color:var(--text-faint);
+}
+.play-bar .sp{ flex:1; }
+.play-bar a, .play-bar button{
+  font-size:13px; padding:9px 15px; border-radius:10px;
+}
+#game-frame{
+  flex:1; width:100%; border:0; border-radius:clamp(0px,1.4vw,16px);
+  background:var(--bg); box-shadow:0 30px 90px -30px #000;
+  min-height:0;
+}
+@media (max-width:640px){
+  #play{ padding:0; }
+  .play-bar{ padding:10px 12px 0; }
+}
+
+@media (prefers-reduced-motion:reduce){
+  html{ scroll-behavior:auto; }
+  *{ animation-duration:.01ms !important; transition-duration:.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <div class="wrap nav">
+    <a class="brand" href="#top">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Endor Labs <span>· Signal vs. Noise</span></span>
+    </a>
+    <nav class="nav-links">
+      <a href="#why" class="hide-sm">Why it's hard</a>
+      <a href="#booth" class="hide-sm">Run it</a>
+      <a href="signal-vs-noise.html#board">Leaderboard</a>
+      <button class="btn btn-primary" data-play>Play</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ══════════════════ HERO ══════════════════ -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="eyebrow">60 seconds · triage under pressure</div>
+        <h1>
+          <span class="sig">Signal</span>
+          <span class="vs">versus</span>
+          <span class="noise">Noise</span>
+        </h1>
+        <p class="lead">
+          A stream of vulnerability alerts, one card at a time. Swipe each one
+          <strong>Fix Now</strong> or <strong>Ignore</strong>. The catch: the severity badge
+          is lying to you about half the time — the same way it does in your backlog.
+        </p>
+        <div class="hero-cta">
+          <button class="btn btn-primary btn-lg" data-play>Play the game →</button>
+          <a class="btn btn-lg" href="#why">See why it's hard</a>
+        </div>
+        <div class="hero-meta">
+          <span>60-second rounds</span>
+          <span>30 alert cards</span>
+          <span>Scored on accuracy</span>
+        </div>
+      </div>
+
+      <div class="stack" aria-hidden="true">
+        <!-- decorative: the fanned deck players see -->
+        <div class="pcard"></div>
+        <div class="pcard"></div>
+        <div class="pcard">
+          <div class="pcard-top">
+            <span class="eco">PyPI</span>
+            <span class="badge sev-critical">Critical</span>
+          </div>
+          <h3 class="pkg">yamlsafe-loader<span class="ver">@2.0.0</span></h3>
+          <div class="cve">CVE-2025-29913</div>
+          <p class="pdesc">Arbitrary object instantiation when documents are read with <code>full_load()</code>.</p>
+          <div class="meter">
+            <div class="meter-row"><span>CVSS base score</span><b>9.8 / 10</b></div>
+            <div class="meter-track"><i class="mf-critical" style="width:98%"></i></div>
+          </div>
+          <div class="ctx">
+            <div class="ctx-label">Usage in your repo</div>
+            <p>Every call site uses <code>safe_load()</code>. <code>full_load()</code> appears in no source file.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ WHY ══════════════════ -->
+  <section id="why">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">The whole point</div>
+        <h2>Severity tells you how bad it <em>could</em> be. Not whether it can happen here.</h2>
+        <p class="lead">
+          Both of these are real findings on a real dependency. One is a 9.8 you should
+          close the ticket on. The other is a 3.7 that should wake someone up. Sorting by
+          CVSS gets both of them exactly wrong.
+        </p>
+      </div>
+
+      <div class="traps">
+        <div>
+          <div class="trap-cap">Critical — and harmless</div>
+          <div class="pcard">
+            <div class="pcard-top">
+              <span class="eco">npm</span>
+              <span class="badge sev-critical">Critical</span>
+            </div>
+            <h3 class="pkg">numpy-fastmath<span class="ver">@0.6.2</span></h3>
+            <div class="cve">CVE-2025-28449</div>
+            <p class="pdesc">Buffer overflow in the <code>float128</code> SIMD kernel.</p>
+            <div class="meter">
+              <div class="meter-row"><span>CVSS base score</span><b>9.4 / 10</b></div>
+              <div class="meter-track"><i class="mf-critical" style="width:94%"></i></div>
+            </div>
+            <div class="ctx">
+              <div class="ctx-label">Usage in your repo</div>
+              <p>Every array in the pipeline is pinned to <code>dtype=float64</code>. The <code>float128</code> kernel is never dispatched.</p>
+            </div>
+            <div class="verdict ignore">
+              <span class="vmark" aria-hidden="true">✕</span>
+              <span><b>Ignore.</b> The overflow lives in a code path this project never reaches. Severity high, reachability zero.</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="trap-cap">Low — and urgent</div>
+          <div class="pcard">
+            <div class="pcard-top">
+              <span class="eco">npm</span>
+              <span class="badge sev-low">Low</span>
+            </div>
+            <h3 class="pkg">express-rate-guard<span class="ver">@1.4.2</span></h3>
+            <div class="cve">CVE-2025-30188</div>
+            <p class="pdesc">Request counter resets when the client sends an unusual <code>X-Forwarded-For</code> chain.</p>
+            <div class="meter">
+              <div class="meter-row"><span>CVSS base score</span><b>3.7 / 10</b></div>
+              <div class="meter-track"><i class="mf-low" style="width:37%"></i></div>
+            </div>
+            <div class="ctx">
+              <div class="ctx-label">Usage in your repo</div>
+              <p>The only throttle in front of the unauthenticated password-reset endpoint.</p>
+            </div>
+            <div class="verdict fix">
+              <span class="vmark" aria-hidden="true">✓</span>
+              <span><b>Fix now.</b> A 3.7 that switches off your only rate limit on password reset. Brute force is back on.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- the number the game is built around -->
+      <div class="figure">
+        <div class="fig-grid">
+          <div>
+            <div class="hero-fig">92%</div>
+            <p class="hero-fig-lbl">of alerts filtered out before a developer ever sees them.</p>
+          </div>
+          <div>
+            <div class="bar-head">
+              <div class="l">
+                <span class="n">920</span>
+                <span class="t">Noise<span class="xs"> · not reachable</span></span>
+              </div>
+              <div class="r">
+                <span class="n">80</span>
+                <span class="t">Reachable<span class="xs"> · worth fixing</span></span>
+              </div>
+            </div>
+            <div class="propbar" role="img"
+                 aria-label="Of 1,000 dependency alerts, about 920 are unreachable noise and about 80 are reachable and worth fixing.">
+              <div class="seg noise"></div>
+              <div class="seg sig"></div>
+            </div>
+            <p class="bar-foot">
+              Per 1,000 dependency alerts, at the ~92% noise reduction Endor Labs reports from
+              reachability analysis. The game is that ratio, made playable — and it's why
+              scoring rewards accuracy instead of speed.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ WHAT IT IS ══════════════════ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">What players get</div>
+        <h2>One round. Sixty seconds. No instructions needed.</h2>
+      </div>
+      <div class="tiles">
+        <div class="tile">
+          <div class="k">Round length</div>
+          <div class="v">60s</div>
+          <div class="d">Long enough to think, short enough that a queue keeps moving.</div>
+        </div>
+        <div class="tile">
+          <div class="k">Alert pool</div>
+          <div class="v">30 cards</div>
+          <div class="d">18 dealt per round, shuffled — so a second play is a different game.</div>
+        </div>
+        <div class="tile">
+          <div class="k">Scored on</div>
+          <div class="v">Accuracy</div>
+          <div class="d">Careful triage beats fast swiping. Every wrong call explains itself.</div>
+        </div>
+        <div class="tile">
+          <div class="k">Setup</div>
+          <div class="v">One file</div>
+          <div class="d">A single HTML file. No build, no server, no internet at the booth.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ BOOTH ══════════════════ -->
+  <section id="booth">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">Running it</div>
+        <h2>Two screens, zero infrastructure.</h2>
+        <p class="lead">
+          Everything is local to the device. Nothing is uploaded, and the booth doesn't
+          need conference wifi to be working.
+        </p>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <h3>Player tablet</h3>
+          <p>Open <code>signal-vs-noise.html</code> fullscreen. Portrait or landscape, touch
+             or mouse — arrow keys work too, for testing on a laptop.</p>
+        </div>
+        <div class="step">
+          <h3>Second screen</h3>
+          <p>Open <code>signal-vs-noise.html#board</code> on the big monitor. It launches
+             straight into large-type display mode and refreshes as scores land.</p>
+          <p>Same machine as the tablet — scores live in that browser's local storage.</p>
+        </div>
+        <div class="step">
+          <h3>Staff controls</h3>
+          <p>Optional name and email capture on the end screen for the raffle. Booth staff
+             can wipe the board between days with one button.</p>
+          <p>Cards and timings are a plain array at the top of the file — edit without
+             touching game logic.</p>
+        </div>
+      </div>
+
+      <div class="cta">
+        <div class="eyebrow">Ready when you are</div>
+        <h2>How much of the noise can you spot?</h2>
+        <p class="lead">
+          Sixty seconds. Eighteen alerts. Most people find out they trust the severity
+          badge more than they thought.
+        </p>
+        <div class="cta-row">
+          <button class="btn btn-primary btn-lg" data-play>Play the game →</button>
+          <a class="btn btn-lg" href="signal-vs-noise.html#board">View the leaderboard</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <a class="brand" href="#top">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Endor Labs <span>· Signal vs. Noise</span></span>
+      </a>
+      <p class="disclaimer">
+        All package names, CVE identifiers, versions and findings shown here and in the game
+        are fictional and were invented for this demonstration. They do not describe real
+        vulnerabilities in real software. Any resemblance to existing packages or
+        identifiers is coincidental.
+      </p>
+    </div>
+    <div class="foot-links">
+      <a href="signal-vs-noise.html">Open the game</a>
+      <a href="signal-vs-noise.html#board">Booth display</a>
+      <a href="#why">Why it's hard</a>
+      <a href="#booth">Run it at a booth</a>
+    </div>
+  </div>
+</footer>
+
+<!-- ══════════════════ PLAY OVERLAY ══════════════════ -->
+<div id="play" role="dialog" aria-modal="true" aria-label="Signal vs. Noise game">
+  <div class="play-bar">
+    <span class="t">Signal vs. Noise</span>
+    <span class="sp"></span>
+    <a class="btn" href="signal-vs-noise.html" target="_blank" rel="noopener">Open full screen ↗</a>
+    <button class="btn" id="play-close">Close ✕</button>
+  </div>
+  <iframe id="game-frame" title="Signal vs. Noise"></iframe>
+</div>
+
+<script>
+"use strict";
+
+const GAME_URL = "signal-vs-noise.html";
+const overlay  = document.getElementById("play");
+const frame    = document.getElementById("game-frame");
+let lastFocus  = null;
+
+function openPlay(trigger){
+  lastFocus = trigger || document.activeElement;
+  // set src on open so the game (and its timer) only start when asked for
+  if (frame.getAttribute("src") !== GAME_URL) frame.setAttribute("src", GAME_URL);
+  overlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+  // focus the close button, not the frame: once focus is inside the iframe the
+  // parent stops seeing Escape, and in there Escape is the game's own "end round"
+  setTimeout(() => document.getElementById("play-close").focus(), 60);
+}
+
+function closePlay(){
+  overlay.classList.remove("open");
+  document.body.style.overflow = "";
+  frame.removeAttribute("src");           // stop the round, reset for next player
+  if (lastFocus && lastFocus.focus) lastFocus.focus();
+}
+
+document.querySelectorAll("[data-play]").forEach(b => {
+  b.addEventListener("click", () => openPlay(b));
+});
+document.getElementById("play-close").addEventListener("click", closePlay);
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && overlay.classList.contains("open")) closePlay();
+});
+
+/* nav gets a rule once the page scrolls under it */
+const header = document.querySelector("header");
+const onScroll = () => header.classList.toggle("stuck", window.scrollY > 8);
+window.addEventListener("scroll", onScroll, { passive:true });
+onScroll();
+</script>
+</body>
+</html>
