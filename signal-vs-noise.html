@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="color-scheme" content="dark">
+<title>Signal vs. Noise — Endor Labs</title>
+<style>
+/* ============================================================================
+   SIGNAL vs. NOISE — booth game for Endor Labs
+   Single-file, offline-capable. No external dependencies.
+   ========================================================================= */
+
+:root{
+  --bg:            #06070d;
+  --bg-2:          #0b0d18;
+  --surface:       #12152300;
+  --card:          #151928;
+  --card-2:        #1b2032;
+  --line:          rgba(255,255,255,.09);
+  --line-strong:   rgba(255,255,255,.16);
+  --text:          #eef0f7;
+  --text-dim:      #9aa2bd;
+  --text-faint:    #6b7492;
+
+  --accent:        #7b61ff;
+  --accent-2:      #4c8dff;
+  --accent-soft:   rgba(123,97,255,.16);
+
+  --fix:           #2ee6a8;
+  --fix-deep:      #0f9c72;
+  --ignore:        #ff5470;
+  --ignore-deep:   #c0203d;
+
+  --crit:          #ff4d6a;
+  --high:          #ff8a3d;
+  --med:           #ffc53d;
+  --low:           #4ecdc4;
+
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", "Fira Code", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --r: 20px;
+  --pad: clamp(16px, 3.2vw, 28px);
+}
+
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  font-family:var(--sans);
+  color:var(--text);
+  background:var(--bg);
+  overflow:hidden;
+  overscroll-behavior:none;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+body::before{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(1100px 700px at 12% -10%, rgba(123,97,255,.22), transparent 62%),
+    radial-gradient(900px 620px at 92% 8%,  rgba(76,141,255,.16), transparent 60%),
+    radial-gradient(1000px 800px at 50% 115%, rgba(123,97,255,.12), transparent 65%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 70%);
+}
+body::after{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.35;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.028) 1px, transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(ellipse 85% 70% at 50% 40%, #000 30%, transparent 100%);
+  -webkit-mask-image:radial-gradient(ellipse 85% 70% at 50% 40%, #000 30%, transparent 100%);
+}
+
+#app{ position:relative; z-index:1; height:100dvh; height:100vh; }
+@supports (height:100dvh){ #app{ height:100dvh; } }
+
+.screen{
+  position:absolute; inset:0;
+  display:none;
+  flex-direction:column;
+  padding:max(var(--pad), env(safe-area-inset-top)) var(--pad) max(var(--pad), env(safe-area-inset-bottom));
+}
+.screen.active{ display:flex; animation:fade .32s ease both; }
+@keyframes fade{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:none;} }
+
+/* ---------- shared bits ---------- */
+.brand{ display:flex; align-items:center; gap:11px; }
+.brand-mark{
+  width:30px; height:30px; flex:none;
+  border-radius:9px;
+  background:linear-gradient(140deg, var(--accent), var(--accent-2));
+  position:relative;
+  box-shadow:0 0 0 1px rgba(255,255,255,.14) inset, 0 6px 22px rgba(123,97,255,.4);
+}
+.brand-mark::after{
+  content:""; position:absolute; inset:8px;
+  border-radius:3px;
+  border:2px solid rgba(255,255,255,.92);
+  border-right-color:transparent; border-bottom-color:transparent;
+  transform:rotate(45deg);
+}
+.brand-name{ font-weight:650; letter-spacing:-.01em; font-size:clamp(14px,2vw,17px); }
+.brand-name span{ color:var(--text-faint); font-weight:450; }
+
+.eyebrow{
+  font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--accent); opacity:.9;
+}
+.muted{ color:var(--text-dim); }
+.faint{ color:var(--text-faint); }
+code{
+  font-family:var(--mono); font-size:.9em;
+  background:rgba(123,97,255,.14); color:#c9bcff;
+  padding:.1em .38em; border-radius:5px;
+  border:1px solid rgba(123,97,255,.2);
+  white-space:nowrap;
+}
+
+button{ font:inherit; color:inherit; border:0; background:none; cursor:pointer; }
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:9px;
+  padding:15px 26px; border-radius:14px;
+  font-weight:600; font-size:clamp(14px,1.7vw,16px); letter-spacing:.01em;
+  border:1px solid var(--line-strong);
+  background:rgba(255,255,255,.045);
+  transition:transform .12s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+  touch-action:manipulation;
+}
+.btn:hover{ background:rgba(255,255,255,.085); border-color:rgba(255,255,255,.26); }
+.btn:active{ transform:scale(.97); }
+.btn-primary{
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color:transparent; color:#fff;
+  box-shadow:0 10px 34px rgba(103,86,255,.42), 0 0 0 1px rgba(255,255,255,.1) inset;
+}
+.btn-primary:hover{ background:linear-gradient(135deg,#8a73ff,#5d98ff); border-color:transparent; }
+.btn-lg{ padding:20px 46px; font-size:clamp(16px,2.2vw,19px); border-radius:17px; }
+.btn-ghost{ background:transparent; border-color:var(--line); color:var(--text-dim); }
+.btn-ghost:hover{ color:var(--text); }
+
+/* ============================ START ============================ */
+#screen-start{ justify-content:space-between; }
+.start-body{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; gap:clamp(14px,2.4vh,26px); padding:10px 0;
+}
+.title{
+  margin:0; font-weight:700; letter-spacing:-.035em; line-height:.95;
+  font-size:clamp(46px, 11vw, 132px);
+}
+.title .sig{
+  background:linear-gradient(100deg,#fff 10%, #c3b6ff 55%, #7ea7ff 95%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.title .vs{
+  display:block; font-size:.26em; letter-spacing:.42em; text-transform:uppercase;
+  color:var(--text-faint); font-weight:500; margin:.34em 0;
+}
+.title .noise{ color:#3d4460; }
+.lede{
+  max-width:44ch; margin:0; line-height:1.55;
+  font-size:clamp(15px,2.1vw,20px); color:var(--text-dim);
+}
+.lede strong{ color:var(--text); font-weight:600; }
+.howto{
+  display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
+  font-size:clamp(12px,1.6vw,14px);
+}
+.howto div{
+  display:flex; align-items:center; gap:8px;
+  padding:9px 15px; border-radius:11px;
+  border:1px solid var(--line); background:rgba(255,255,255,.035);
+  color:var(--text-dim);
+}
+.howto b{ color:var(--text); font-weight:600; }
+.dot{ width:8px; height:8px; border-radius:50%; flex:none; }
+.dot.g{ background:var(--fix); box-shadow:0 0 12px var(--fix); }
+.dot.r{ background:var(--ignore); box-shadow:0 0 12px var(--ignore); }
+
+.start-actions{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; }
+.start-foot{
+  display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap;
+  font-size:11px; color:var(--text-faint); line-height:1.5;
+}
+.disclaimer{ max-width:62ch; font-family:var(--mono); font-size:10.5px; letter-spacing:.02em; }
+
+/* ============================ GAME ============================ */
+.hud{ display:flex; flex-direction:column; gap:12px; flex:none; }
+.hud-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.chip{
+  display:inline-flex; align-items:baseline; gap:7px;
+  padding:8px 14px; border-radius:11px;
+  border:1px solid var(--line); background:rgba(255,255,255,.04);
+  font-family:var(--mono); font-size:12px; letter-spacing:.02em; color:var(--text-dim);
+  white-space:nowrap;
+}
+.chip b{ font-size:16px; color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
+.chip.acc b{ color:var(--fix); }
+#hud-time b{ font-size:19px; }
+.hud.low #hud-time b{ color:var(--crit); }
+
+.timer{
+  height:5px; border-radius:99px; overflow:hidden;
+  background:rgba(255,255,255,.07); flex:none;
+}
+.timer i{
+  display:block; height:100%; width:100%;
+  background:linear-gradient(90deg, var(--accent), var(--accent-2));
+  transform-origin:left center;
+  transition:background .4s ease;
+}
+.hud.low .timer i{ background:linear-gradient(90deg,#ff8a3d,var(--crit)); }
+
+.icon-btn{
+  width:38px; height:38px; border-radius:11px; flex:none;
+  display:grid; place-items:center;
+  border:1px solid var(--line); background:rgba(255,255,255,.035);
+  color:var(--text-faint); font-size:15px; line-height:1;
+  transition:color .18s, border-color .18s;
+}
+.icon-btn:hover{ color:var(--text); border-color:var(--line-strong); }
+
+/* ---- deck stage ---- */
+.stage{
+  flex:1; position:relative;
+  display:grid; place-items:center;
+  min-height:0; margin:clamp(10px,2vh,20px) 0;
+  perspective:1400px;
+}
+.deck{
+  position:relative;
+  width:min(100%, 560px);
+  height:100%;            /* replaced with a measured pixel height by sizeDeck() */
+}
+.card{
+  position:absolute; left:0; right:0; top:0;   /* height comes from content, see sizeDeck() */
+  display:flex; flex-direction:column; gap:clamp(9px,1.5vh,14px);
+  padding:clamp(18px,3vw,32px);
+  border-radius:var(--r);
+  background:linear-gradient(168deg, var(--card-2), var(--card) 58%);
+  border:1px solid var(--line-strong);
+  box-shadow:0 26px 70px -18px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.035) inset;
+  will-change:transform, opacity;
+  touch-action:none;
+  user-select:none; -webkit-user-select:none;
+  overflow:hidden;
+}
+.card.settle{ transition:transform .42s cubic-bezier(.2,.9,.28,1), opacity .3s ease; }
+.card.fly{ transition:transform .34s cubic-bezier(.35,.1,.3,1), opacity .34s ease; }
+.card::after{ /* top sheen */
+  content:""; position:absolute; left:0; right:0; top:0; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
+}
+.card-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.eco{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--text-faint);
+  padding:5px 9px; border-radius:7px; border:1px solid var(--line); background:rgba(255,255,255,.03);
+}
+.badge{
+  font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.11em; text-transform:uppercase;
+  padding:6px 11px; border-radius:7px; white-space:nowrap;
+}
+.sev-critical{ color:var(--crit);  background:rgba(255,77,106,.13);  border:1px solid rgba(255,77,106,.42); }
+.sev-high    { color:var(--high);  background:rgba(255,138,61,.13);  border:1px solid rgba(255,138,61,.42); }
+.sev-medium  { color:var(--med);   background:rgba(255,197,61,.12);  border:1px solid rgba(255,197,61,.4); }
+.sev-low     { color:var(--low);   background:rgba(78,205,196,.12);  border:1px solid rgba(78,205,196,.4); }
+
+.pkg{
+  margin:0; font-family:var(--mono); font-weight:600; letter-spacing:-.015em;
+  font-size:clamp(20px,3.6vw,32px); line-height:1.15; word-break:break-word;
+}
+.pkg .ver{ color:var(--text-faint); font-weight:400; }
+.cve{
+  font-family:var(--mono); font-size:clamp(11px,1.8vw,13px); letter-spacing:.14em;
+  color:var(--accent); margin-top:-4px;
+}
+.desc{
+  margin:0; line-height:1.5; color:var(--text);
+  font-size:clamp(14px,2.1vw,19px);
+}
+.meter{ display:flex; flex-direction:column; gap:6px; }
+.meter-row{
+  display:flex; align-items:baseline; justify-content:space-between;
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--text-faint);
+}
+.meter-row b{ font-size:13px; letter-spacing:.04em; color:var(--text-dim); font-weight:600; }
+.meter-track{ height:4px; border-radius:99px; background:rgba(255,255,255,.07); overflow:hidden; }
+.meter-track i{ display:block; height:100%; border-radius:99px; }
+.mf-critical{ background:var(--crit); box-shadow:0 0 12px rgba(255,77,106,.65); }
+.mf-high    { background:var(--high); box-shadow:0 0 12px rgba(255,138,61,.55); }
+.mf-medium  { background:var(--med);  box-shadow:0 0 12px rgba(255,197,61,.5); }
+.mf-low     { background:var(--low);  box-shadow:0 0 12px rgba(78,205,196,.5); }
+
+.ctx{
+  margin-top:auto;
+  border-radius:13px; padding:clamp(11px,1.9vw,15px);
+  background:rgba(123,97,255,.07);
+  border:1px solid rgba(123,97,255,.22);
+}
+.ctx-label{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:6px; opacity:.95;
+}
+.ctx p{ margin:0; font-size:clamp(13px,1.9vw,17px); line-height:1.5; color:var(--text-dim); }
+
+.stamp{
+  position:absolute; top:clamp(52px,9vw,78px);
+  font-family:var(--mono); font-weight:800; font-size:clamp(20px,4vw,32px);
+  letter-spacing:.06em; padding:8px 16px; border-radius:11px;
+  opacity:0; pointer-events:none;
+}
+.stamp-fix{ right:20px; transform:rotate(13deg); color:var(--fix); border:3px solid var(--fix); background:rgba(46,230,168,.1); }
+.stamp-ign{ left:20px;  transform:rotate(-13deg); color:var(--ignore); border:3px solid var(--ignore); background:rgba(255,84,112,.1); }
+
+/* ---- answer controls ---- */
+.controls{
+  flex:none; display:flex; gap:clamp(10px,2vw,18px);
+  align-items:center; justify-content:center;
+  width:min(100%, 560px); margin:0 auto;
+}
+.ans{
+  flex:1; display:flex; align-items:center; justify-content:center; gap:10px;
+  padding:clamp(15px,2.4vh,21px) 14px; border-radius:16px;
+  font-weight:700; font-size:clamp(14px,2vw,17px); letter-spacing:.01em;
+  border:1px solid; transition:transform .12s ease, box-shadow .2s ease, background .2s ease;
+  touch-action:manipulation;
+}
+.ans small{ display:block; font-weight:500; font-size:11px; opacity:.72; letter-spacing:.02em; }
+.ans-ign{ color:#ffd0d8; background:rgba(255,84,112,.13); border-color:rgba(255,84,112,.45); }
+.ans-ign:hover{ background:rgba(255,84,112,.22); box-shadow:0 8px 30px -8px rgba(255,84,112,.6); }
+.ans-fix{ color:#c6ffe9; background:rgba(46,230,168,.13); border-color:rgba(46,230,168,.45); }
+.ans-fix:hover{ background:rgba(46,230,168,.22); box-shadow:0 8px 30px -8px rgba(46,230,168,.6); }
+.ans:active{ transform:scale(.96); }
+.ans .k{
+  font-family:var(--mono); font-size:10px; opacity:.5; border:1px solid currentColor;
+  border-radius:5px; padding:1px 5px; margin-left:2px;
+}
+@media (pointer:coarse){ .ans .k{ display:none; } }
+
+/* ---- reveal ---- */
+#flash{
+  position:fixed; inset:0; z-index:40; pointer-events:none; opacity:0;
+  transition:opacity .45s ease;
+}
+#flash.on{ opacity:1; transition:opacity .08s ease; }
+#flash.good{ background:radial-gradient(ellipse at center, rgba(46,230,168,.2), rgba(46,230,168,.05) 55%, transparent 75%); box-shadow:inset 0 0 0 4px rgba(46,230,168,.5); }
+#flash.bad{ background:radial-gradient(ellipse at center, rgba(255,84,112,.2), rgba(255,84,112,.05) 55%, transparent 75%); box-shadow:inset 0 0 0 4px rgba(255,84,112,.5); }
+
+#reveal{
+  position:absolute; left:50%; bottom:0; z-index:200;  /* must clear the card stack */
+  width:min(100%, 560px); transform:translate(-50%, 130%);
+  border-radius:18px; padding:clamp(14px,2.3vw,20px);
+  border:1px solid; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  transition:transform .3s cubic-bezier(.2,.9,.28,1), opacity .3s ease;
+  opacity:0; cursor:pointer;
+}
+#reveal.show{ transform:translate(-50%, -6px); opacity:1; }
+#reveal.good{ background:rgba(12,42,33,.93); border-color:rgba(46,230,168,.5); }
+#reveal.bad{ background:rgba(48,12,22,.93); border-color:rgba(255,84,112,.5); }
+.rv-head{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:clamp(14px,2vw,17px); }
+#reveal.good .rv-head{ color:var(--fix); }
+#reveal.bad .rv-head{ color:#ff8195; }
+.rv-mark{
+  width:26px; height:26px; border-radius:50%; flex:none; display:grid; place-items:center;
+  font-size:15px; font-weight:800; color:#04110c;
+}
+#reveal.good .rv-mark{ background:var(--fix); }
+#reveal.bad .rv-mark{ background:var(--ignore); color:#2a0410; }
+.rv-verdict{
+  margin-left:auto; font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+  padding:4px 9px; border-radius:6px; border:1px solid currentColor; opacity:.85;
+}
+.rv-why{ margin:9px 0 0; font-size:clamp(13px,1.9vw,15px); line-height:1.5; color:#e3e7f2; }
+.rv-tap{ margin:8px 0 0; font-size:10.5px; font-family:var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--text-faint); }
+
+/* ============================ END ============================ */
+#screen-end .end-scroll{
+  flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:clamp(14px,2.4vh,24px);
+  text-align:center; padding:12px 0;
+}
+.score-ring{ position:relative; width:clamp(160px,30vw,230px); aspect-ratio:1; flex:none; }
+.score-ring svg{ width:100%; height:100%; transform:rotate(-90deg); }
+.score-ring circle{ fill:none; stroke-width:9; stroke-linecap:round; }
+.score-ring .track{ stroke:rgba(255,255,255,.08); }
+.score-ring .val{ stroke:url(#ringgrad); transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.25,1); }
+.score-ring .mid{
+  position:absolute; inset:0; display:grid; place-content:center; gap:2px;
+}
+.score-ring .num{
+  font-size:clamp(42px,8vw,64px); font-weight:700; letter-spacing:-.04em; line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+.score-ring .num i{ font-style:normal; font-size:.44em; color:var(--text-dim); }
+.score-ring .lbl{ font-family:var(--mono); font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--text-faint); }
+
+.verdict-line{ margin:0; font-size:clamp(19px,3vw,27px); font-weight:650; letter-spacing:-.02em; }
+.splits{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.split{
+  min-width:150px; padding:13px 18px; border-radius:14px;
+  border:1px solid var(--line); background:rgba(255,255,255,.035); text-align:left;
+}
+.split .k{ font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--text-faint); }
+.split .v{ font-size:clamp(18px,2.6vw,23px); font-weight:650; margin-top:4px; font-variant-numeric:tabular-nums; }
+.split.a .v{ color:var(--fix); }
+.split.b .v{ color:var(--accent-2); }
+
+.pitch{
+  max-width:60ch; margin:0; line-height:1.6; font-size:clamp(14px,1.9vw,17px); color:var(--text-dim);
+  padding:clamp(14px,2.2vw,20px); border-radius:16px;
+  background:linear-gradient(135deg, rgba(123,97,255,.12), rgba(76,141,255,.07));
+  border:1px solid rgba(123,97,255,.26);
+}
+.pitch b{ color:var(--text); font-weight:650; }
+
+.capture{
+  width:min(100%, 520px); display:flex; flex-direction:column; gap:9px;
+  padding:clamp(14px,2.2vw,18px); border-radius:16px;
+  border:1px dashed var(--line-strong); background:rgba(255,255,255,.025); text-align:left;
+}
+.capture .hdr{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.capture h3{ margin:0; font-size:13px; font-weight:650; letter-spacing:.01em; }
+.capture .hint{ font-family:var(--mono); font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--text-faint); }
+.fields{ display:flex; gap:9px; flex-wrap:wrap; }
+.fields input{
+  flex:1 1 170px; min-width:0;
+  padding:13px 14px; border-radius:11px; font:inherit; font-size:15px;
+  color:var(--text); background:rgba(0,0,0,.35);
+  border:1px solid var(--line-strong); outline:none;
+  transition:border-color .18s, box-shadow .18s;
+}
+.fields .btn{ flex:1 1 150px; }
+.fields input::placeholder{ color:var(--text-faint); }
+.fields input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+#save-status{ font-size:12px; color:var(--fix); min-height:1.2em; font-family:var(--mono); letter-spacing:.04em; }
+
+.end-actions{ display:flex; gap:11px; flex-wrap:wrap; justify-content:center; flex:none; padding-top:12px; }
+
+/* ============================ LEADERBOARD ============================ */
+#screen-board .board-head{
+  display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; flex:none;
+}
+#screen-board h2{
+  margin:4px 0 0; font-size:clamp(28px,5.5vw,56px); font-weight:700; letter-spacing:-.035em; line-height:1;
+}
+.board-list{
+  flex:1; min-height:0; overflow-y:auto; margin-top:clamp(14px,2.4vh,24px);
+  display:flex; flex-direction:column; gap:8px; padding-right:4px;
+}
+.row{
+  display:grid; align-items:center; gap:clamp(10px,2vw,20px);
+  grid-template-columns:clamp(40px,6vw,64px) minmax(0,1fr) auto auto;
+  padding:clamp(11px,1.8vh,17px) clamp(13px,2vw,20px);
+  border-radius:14px; border:1px solid var(--line); background:rgba(255,255,255,.03);
+}
+.row.top1{ background:linear-gradient(100deg, rgba(123,97,255,.2), rgba(76,141,255,.07)); border-color:rgba(123,97,255,.5); }
+.row.top2{ background:rgba(255,255,255,.06); border-color:var(--line-strong); }
+.row.top3{ background:rgba(255,255,255,.045); }
+.rank{
+  font-family:var(--mono); font-weight:700; font-size:clamp(17px,3vw,30px);
+  color:var(--text-faint); font-variant-numeric:tabular-nums;
+}
+.row.top1 .rank{ color:var(--accent); }
+.row.top2 .rank, .row.top3 .rank{ color:var(--text-dim); }
+.who{ min-width:0; }
+.who .nm{
+  font-weight:600; font-size:clamp(15px,2.4vw,24px); letter-spacing:-.01em;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.who .mt{ font-family:var(--mono); font-size:clamp(9.5px,1.2vw,12px); color:var(--text-faint); letter-spacing:.06em; margin-top:2px; }
+.row .cards{ font-family:var(--mono); font-size:clamp(11px,1.5vw,14px); color:var(--text-dim); white-space:nowrap; }
+.row .acc{
+  font-size:clamp(20px,3.4vw,36px); font-weight:700; letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.row.top1 .acc{ color:var(--fix); }
+.row.just{ animation:pop .9s ease both; }
+@keyframes pop{
+  0%{ transform:scale(.97); box-shadow:0 0 0 0 rgba(46,230,168,.55); }
+  40%{ transform:scale(1); box-shadow:0 0 0 7px rgba(46,230,168,0); }
+  100%{ transform:none; box-shadow:none; }
+}
+.btn[disabled]{ opacity:.55; cursor:default; box-shadow:none; }
+.btn[disabled]:active{ transform:none; }
+.empty{
+  margin:auto; text-align:center; color:var(--text-faint); font-size:15px; line-height:1.7; padding:40px 20px;
+}
+.board-foot{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; flex:none; padding-top:14px; }
+
+/* booth display mode — second screen, viewed from a distance */
+body.booth #screen-board .board-head .btn,
+body.booth #screen-board .board-foot .btn{ display:none; }
+body.booth #screen-board .board-foot #board-exit-booth{ display:inline-flex; }
+body.booth .row{ padding:clamp(14px,2.6vh,26px) clamp(16px,2.4vw,28px); }
+body.booth .who .nm{ font-size:clamp(18px,3vw,34px); }
+body.booth .row .acc{ font-size:clamp(24px,4.4vw,52px); }
+body.booth #screen-board h2{ font-size:clamp(34px,6.5vw,76px); }
+
+/* ---------- misc ---------- */
+.spacer{ flex:1; }
+.hidden{ display:none !important; }
+::-webkit-scrollbar{ width:9px; height:9px; }
+::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.14); border-radius:99px; }
+::-webkit-scrollbar-track{ background:transparent; }
+
+@media (max-width:420px){
+  .split{ min-width:132px; }
+  .ans small{ display:none; }
+}
+/* landscape tablet: keep the vertical layout but tighten it up */
+@media (orientation:landscape) and (max-height:620px){
+  .stage{ margin:8px 0; }
+  .card{ gap:8px; padding:16px 20px; }
+  .ctx{ padding:10px 12px; }
+  .start-body{ gap:12px; }
+}
+/* phone held in landscape — everything has to fit in a very short viewport */
+@media (max-height:520px){
+  :root{ --pad:12px; --r:15px; }
+  .hud{ gap:8px; }
+  .chip{ padding:5px 10px; font-size:11px; }
+  .chip b{ font-size:14px; }
+  #hud-time b{ font-size:16px; }
+  .icon-btn{ width:32px; height:32px; }
+  .stage{ margin:8px 0; }
+  .card{ gap:6px; padding:12px 16px; }
+  .pkg{ font-size:clamp(17px,2.6vw,21px); }
+  .cve{ font-size:10.5px; margin-top:-2px; }
+  .desc{ font-size:13px; line-height:1.4; }
+  .card-top .eco, .card-top .badge{ padding:3px 7px; font-size:9.5px; }
+  .meter{ gap:4px; }
+  .meter-row{ font-size:8.5px; }
+  .meter-row b{ font-size:11px; }
+  .ctx{ padding:8px 10px; border-radius:10px; }
+  .ctx-label{ margin-bottom:3px; }
+  .ctx p{ font-size:12.5px; line-height:1.4; }
+  .stamp{ top:30px; font-size:19px; padding:5px 11px; }
+  .ans{ padding:10px 12px; font-size:14px; border-radius:12px; }
+  .ans small{ display:none; }
+  #reveal{ padding:11px 13px; border-radius:13px; }
+  .rv-head{ font-size:14px; }
+  .rv-mark{ width:21px; height:21px; font-size:12px; }
+  .rv-why{ margin-top:6px; font-size:13px; line-height:1.4; }
+  .rv-tap{ display:none; }
+}
+@media (prefers-reduced-motion:reduce){
+  *{ animation-duration:.01ms !important; transition-duration:.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ══════════════════════ START ══════════════════════ -->
+  <section id="screen-start" class="screen active">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-name">Endor Labs <span>· Booth Challenge</span></div>
+    </div>
+
+    <div class="start-body">
+      <div class="eyebrow">60 seconds · triage under pressure</div>
+      <h1 class="title">
+        <span class="sig">Signal</span>
+        <span class="vs">versus</span>
+        <span class="noise">Noise</span>
+      </h1>
+      <p class="lede">
+        A stream of vulnerability alerts is coming at you. Decide which ones are
+        <strong>actually exploitable</strong> — and which are just noise.
+      </p>
+      <div class="howto">
+        <div><span class="dot g"></span>Swipe <b>right</b> to Fix Now</div>
+        <div><span class="dot r"></span>Swipe <b>left</b> to Ignore</div>
+        <div>⚡ Scored on <b>accuracy</b>, not speed</div>
+      </div>
+      <div class="start-actions">
+        <button class="btn btn-primary btn-lg" id="btn-start">Start round →</button>
+        <button class="btn btn-ghost" id="btn-board-from-start">Leaderboard</button>
+      </div>
+    </div>
+
+    <div class="start-foot">
+      <p class="disclaimer">
+        All package names, CVE identifiers and findings in this game are fictional and were
+        invented for demonstration purposes. Any resemblance to real software is coincidental.
+      </p>
+      <button class="icon-btn" id="btn-sound" title="Toggle sound">🔊</button>
+    </div>
+  </section>
+
+  <!-- ══════════════════════ GAME ══════════════════════ -->
+  <section id="screen-game" class="screen">
+    <div class="hud" id="hud">
+      <div class="hud-row">
+        <div class="chip acc"><b id="hud-acc">—</b> accuracy</div>
+        <div class="chip" id="hud-time"><b>60</b>s</div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div class="chip" id="hud-count"><b>0</b>/0</div>
+          <button class="icon-btn" id="btn-quit" title="End round">✕</button>
+        </div>
+      </div>
+      <div class="timer"><i id="timer-fill"></i></div>
+    </div>
+
+    <div class="stage">
+      <div class="deck" id="deck"></div>
+      <div id="reveal" role="status" aria-live="polite">
+        <div class="rv-head">
+          <span class="rv-mark" id="rv-mark">✓</span>
+          <span id="rv-title">Correct</span>
+          <span class="rv-verdict" id="rv-verdict">FIX NOW</span>
+        </div>
+        <p class="rv-why" id="rv-why"></p>
+        <p class="rv-tap">Tap to continue</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="ans ans-ign" id="btn-ignore">
+        <span>Ignore<small>noise — not reachable</small></span><span class="k">←</span>
+      </button>
+      <button class="ans ans-fix" id="btn-fix">
+        <span class="k">→</span><span>Fix Now<small>real, exploitable risk</small></span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ══════════════════════ END ══════════════════════ -->
+  <section id="screen-end" class="screen">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-name">Endor Labs <span>· Round complete</span></div>
+    </div>
+
+    <div class="end-scroll">
+      <div class="score-ring">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <defs>
+            <linearGradient id="ringgrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#7b61ff"/>
+              <stop offset="100%" stop-color="#2ee6a8"/>
+            </linearGradient>
+          </defs>
+          <circle class="track" cx="60" cy="60" r="52"/>
+          <circle class="val" id="ring-val" cx="60" cy="60" r="52"
+                  stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+        </svg>
+        <div class="mid">
+          <div class="num"><span id="end-acc">0</span><i>%</i></div>
+          <div class="lbl">Accuracy</div>
+        </div>
+      </div>
+
+      <p class="verdict-line" id="end-verdict">Nice triage.</p>
+
+      <div class="splits">
+        <div class="split"><div class="k">Cards answered</div><div class="v" id="end-answered">0</div></div>
+        <div class="split a"><div class="k">Real risks caught</div><div class="v" id="end-real">0/0</div></div>
+        <div class="split b"><div class="k">Noise filtered</div><div class="v" id="end-noise">0/0</div></div>
+      </div>
+
+      <p class="pitch" id="end-pitch"></p>
+
+      <div class="capture">
+        <div class="hdr">
+          <h3>Add to the leaderboard</h3>
+          <span class="hint">Booth staff · optional</span>
+        </div>
+        <div class="fields">
+          <input id="in-name" type="text" placeholder="Name" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="40">
+          <input id="in-email" type="email" placeholder="Email (for the raffle)" autocomplete="off" spellcheck="false" maxlength="80">
+          <button class="btn btn-primary" id="btn-save">Save score</button>
+        </div>
+        <div id="save-status"></div>
+      </div>
+    </div>
+
+    <div class="end-actions">
+      <button class="btn btn-primary btn-lg" id="btn-again">Play again</button>
+      <button class="btn btn-ghost" id="btn-board-from-end">Leaderboard</button>
+    </div>
+  </section>
+
+  <!-- ══════════════════════ LEADERBOARD ══════════════════════ -->
+  <section id="screen-board" class="screen">
+    <div class="board-head">
+      <div>
+        <div class="brand">
+          <div class="brand-mark"></div>
+          <div class="brand-name">Endor Labs <span>· Signal vs. Noise</span></div>
+        </div>
+        <h2>Leaderboard</h2>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-ghost" id="btn-booth">Booth display</button>
+        <button class="btn btn-primary" id="btn-board-play">Play</button>
+      </div>
+    </div>
+
+    <div class="board-list" id="board-list"></div>
+
+    <div class="board-foot">
+      <span class="faint" style="font-family:var(--mono);font-size:10.5px;letter-spacing:.1em">
+        RANKED BY ACCURACY · TIES BROKEN BY CARDS ANSWERED
+      </span>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" id="btn-clear">Clear</button>
+        <button class="btn btn-ghost hidden" id="board-exit-booth">Exit display</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div id="flash"></div>
+
+<script>
+"use strict";
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CARD POOL  —  booth staff: edit freely, add or remove entries here.
+   Every card needs:
+     pkg        package name
+     version    version string
+     ecosystem  npm | PyPI | Go | Maven | …  (free text, shown as a small tag)
+     cve        fictional CVE id
+     severity   Critical | High | Medium | Low   (drives the badge colour)
+     cvss       number 0.0–10.0
+     desc       one-line description of the vulnerability
+     context    how this codebase uses the package  (the reachability clue)
+     fix_now    true  = the correct answer is "Fix Now"
+                false = the correct answer is "Ignore"
+     why        one-line explanation shown on reveal
+   Text wrapped in `backticks` renders as inline code.
+   ════════════════════════════════════════════════════════════════════════════ */
+const CARDS = [
+  { pkg:"left-pad-utils", version:"2.3.1", ecosystem:"npm",
+    cve:"CVE-2025-31447", severity:"Critical", cvss:9.8,
+    desc:"Remote code execution via unsanitised template expansion in `padTemplate()`.",
+    context:"Imported by `src/api/invoice-renderer.ts`; `padTemplate()` runs on customer-supplied invoice titles.",
+    fix_now:true,
+    why:"Untrusted input reaches the vulnerable function on a live request path. Severity and reachability agree — fix it." },
+
+  { pkg:"fast-json-parse", version:"4.0.2", ecosystem:"npm",
+    cve:"CVE-2025-40219", severity:"Critical", cvss:9.6,
+    desc:"Prototype pollution when parsing with the optional `reviver` callback.",
+    context:"Transitive dependency of the docs generator. The `reviver` option is never passed anywhere in the repo.",
+    fix_now:false,
+    why:"The vulnerable branch only executes when `reviver` is supplied — nothing in this codebase supplies it." },
+
+  { pkg:"pyjwt-lite", version:"1.2.0", ecosystem:"PyPI",
+    cve:"CVE-2025-28810", severity:"High", cvss:8.1,
+    desc:"Algorithm confusion lets tokens signed with `alg: none` pass verification.",
+    context:"`auth/session.py` calls it to verify every inbound bearer token.",
+    fix_now:true,
+    why:"Complete auth bypass on your primary token-verification path. Nothing gets more exploitable than this." },
+
+  { pkg:"imagecrunch", version:"0.9.4", ecosystem:"npm",
+    cve:"CVE-2025-33902", severity:"Critical", cvss:9.1,
+    desc:"Heap overflow while decoding malformed TIFF headers.",
+    context:"Built with `--features=jpeg,png`; TIFF support is compiled out of the shipped binary.",
+    fix_now:false,
+    why:"The vulnerable decoder isn't in the binary you ship — unreachable by construction." },
+
+  { pkg:"tinylog-rotate", version:"3.1.7", ecosystem:"npm",
+    cve:"CVE-2025-37744", severity:"Medium", cvss:5.3,
+    desc:"CRLF sequences in log fields let an attacker forge additional log lines.",
+    context:"Writes the auth log that feeds your SIEM's brute-force detection rules.",
+    fix_now:true,
+    why:"Medium score, real consequence: forged log lines can bury the alerts your SOC relies on." },
+
+  { pkg:"yamlsafe-loader", version:"2.0.0", ecosystem:"PyPI",
+    cve:"CVE-2025-29913", severity:"Critical", cvss:9.8,
+    desc:"Arbitrary object instantiation when documents are read with `full_load()`.",
+    context:"Every call site in the repo uses `safe_load()`. `full_load()` appears in no source file.",
+    fix_now:false,
+    why:"A 9.8 with no reachable path. `full_load()` is never called, so the gadget never runs." },
+
+  { pkg:"express-rate-guard", version:"1.4.2", ecosystem:"npm",
+    cve:"CVE-2025-30188", severity:"Low", cvss:3.7,
+    desc:"Request counter resets when the client sends an unusual `X-Forwarded-For` chain.",
+    context:"The only throttle in front of the unauthenticated password-reset endpoint.",
+    fix_now:true,
+    why:"Low CVSS, but it switches off your only rate limit on password reset — brute force is back on." },
+
+  { pkg:"sql-brick-builder", version:"6.2.0", ecosystem:"npm",
+    cve:"CVE-2025-42061", severity:"High", cvss:8.6,
+    desc:"SQL injection through unparameterised `rawWhere()` clauses.",
+    context:"`reports/adhoc-query.ts` builds `rawWhere()` strings from raw query-string parameters.",
+    fix_now:true,
+    why:"Attacker-controlled input flows straight into the vulnerable call. Directly exploitable today." },
+
+  { pkg:"crypto-hashy", version:"0.4.11", ecosystem:"npm",
+    cve:"CVE-2025-34120", severity:"High", cvss:7.5,
+    desc:"Timing side channel in the legacy `compareHmacV1()` helper.",
+    context:"Pulled in by the deprecated v1 API, which was unrouted in release 4.0 and is no longer served.",
+    fix_now:false,
+    why:"It's in `node_modules`, but nothing routes to it any more. Present ≠ reachable." },
+
+  { pkg:"requests-turbo", version:"2.8.3", ecosystem:"PyPI",
+    cve:"CVE-2025-27004", severity:"Medium", cvss:6.5,
+    desc:"Redirects to private address ranges are followed by default (SSRF).",
+    context:"Powers the webhook-testing feature, which fetches URLs typed in by customers.",
+    fix_now:true,
+    why:"Customer-supplied URLs plus redirect-following equals SSRF into your internal network." },
+
+  { pkg:"chart-render-core", version:"5.0.1", ecosystem:"npm",
+    cve:"CVE-2025-39907", severity:"Critical", cvss:9.3,
+    desc:"Cross-site scripting via unescaped tooltip labels.",
+    context:"Used only in `scripts/generate-internal-dashboard.js`, run by hand by two engineers.",
+    fix_now:false,
+    why:"Build-time-only dependency with no untrusted input and no production surface." },
+
+  { pkg:"dateparse-x", version:"3.3.0", ecosystem:"npm",
+    cve:"CVE-2025-31025", severity:"High", cvss:7.5,
+    desc:"Catastrophic backtracking in the ISO-8601 fallback regex (ReDoS).",
+    context:"Parses the `Last-Modified` header on every inbound sync request.",
+    fix_now:true,
+    why:"Untrusted header text hits the catastrophic regex on a hot path — a one-line request takes the service down." },
+
+  { pkg:"protobuf-slim", version:"1.9.0", ecosystem:"Go",
+    cve:"CVE-2025-35510", severity:"Critical", cvss:9.0,
+    desc:"Unbounded recursion on deeply nested messages exhausts the stack.",
+    context:"Only decodes messages from an internal service over mTLS, behind a 64 KB payload cap.",
+    fix_now:false,
+    why:"Every input is mutually authenticated and size-capped. No untrusted source can reach the parser." },
+
+  { pkg:"session-store-redis", version:"4.1.5", ecosystem:"npm",
+    cve:"CVE-2025-38221", severity:"Medium", cvss:6.1,
+    desc:"Session identifiers fall back to `Math.random()` when the crypto module is unavailable.",
+    context:"That fallback is active in production — the current Alpine image doesn't ship the native crypto binding.",
+    fix_now:true,
+    why:"The 'fallback' is your default. Session IDs are predictable right now, whatever the CVSS says." },
+
+  { pkg:"xml-quickread", version:"2.2.2", ecosystem:"PyPI",
+    cve:"CVE-2025-30330", severity:"Critical", cvss:9.8,
+    desc:"XML external entity injection when entity resolution is enabled.",
+    context:"`parsers/__init__.py` sets `resolve_entities=False` at import time, for every parser instance.",
+    fix_now:false,
+    why:"Entity resolution is disabled globally at import — the vulnerable branch cannot execute." },
+
+  { pkg:"authn-oidc-client", version:"7.0.3", ecosystem:"npm",
+    cve:"CVE-2025-41190", severity:"High", cvss:8.8,
+    desc:"The `state` parameter is not validated on callback, enabling login CSRF.",
+    context:"Drives the 'Sign in with SSO' flow used by every enterprise tenant.",
+    fix_now:true,
+    why:"Live on your primary login path — an attacker can silently sign a victim into an account they control." },
+
+  { pkg:"markdown-render-plus", version:"8.4.0", ecosystem:"npm",
+    cve:"CVE-2025-32677", severity:"High", cvss:8.2,
+    desc:"Stored XSS: `javascript:` URLs survive sanitisation in link targets.",
+    context:"Renders user-submitted README content on the public package-browser page.",
+    fix_now:true,
+    why:"Untrusted markdown rendered into other users' browsers. Textbook stored XSS, fully reachable." },
+
+  { pkg:"numpy-fastmath", version:"0.6.2", ecosystem:"PyPI",
+    cve:"CVE-2025-28449", severity:"Critical", cvss:9.4,
+    desc:"Buffer overflow in the `float128` SIMD kernel.",
+    context:"Every array in the pipeline is pinned to `dtype=float64`; the `float128` kernel is never dispatched.",
+    fix_now:false,
+    why:"The overflow lives in a code path this project never dispatches to. Severity high, reachability zero." },
+
+  { pkg:"zip-stream-lite", version:"1.1.8", ecosystem:"npm",
+    cve:"CVE-2025-36012", severity:"Medium", cvss:6.8,
+    desc:"Archive entries with `../` components escape the extraction directory (zip slip).",
+    context:"Extracts user-uploaded plugin bundles straight into the application directory.",
+    fix_now:true,
+    why:"User-controlled archives with a path-traversal primitive — that's an arbitrary file write, not a medium." },
+
+  { pkg:"grpc-mesh-proxy", version:"2.5.0", ecosystem:"Go",
+    cve:"CVE-2025-40771", severity:"High", cvss:7.8,
+    desc:"Request smuggling through an unvalidated `:authority` pseudo-header.",
+    context:"Vendored into the tree but excluded from every build by a `//go:build ignore` tag.",
+    fix_now:false,
+    why:"The file isn't compiled into any binary you ship. It's inventory, not exposure." },
+
+  { pkg:"bcrypt-turbo", version:"3.0.4", ecosystem:"npm",
+    cve:"CVE-2025-29558", severity:"Low", cvss:3.1,
+    desc:"Silently truncates passwords longer than 51 bytes before hashing.",
+    context:"Hashes every password at registration. Your password policy actively encourages long passphrases.",
+    fix_now:true,
+    why:"Low label, real damage: your most security-conscious users end up with the weakest hashes." },
+
+  { pkg:"i18n-locale-bundle", version:"4.7.1", ecosystem:"npm",
+    cve:"CVE-2025-31599", severity:"Critical", cvss:9.5,
+    desc:"Arbitrary file read via path traversal in the locale loader.",
+    context:"The locale is selected from a hardcoded allowlist of twelve language codes.",
+    fix_now:false,
+    why:"No attacker-controlled path ever reaches the loader — the allowlist closes the traversal." },
+
+  { pkg:"csv-ingest-pro", version:"5.5.2", ecosystem:"PyPI",
+    cve:"CVE-2025-33481", severity:"Medium", cvss:5.9,
+    desc:"Cells beginning with `=` are written unescaped on export (formula injection).",
+    context:"Generates the finance team's monthly export, which they open directly in Excel.",
+    fix_now:true,
+    why:"Untrusted cell data lands in a spreadsheet real people open — that's code execution on their laptops." },
+
+  { pkg:"websock-relay", version:"6.1.0", ecosystem:"npm",
+    cve:"CVE-2025-42330", severity:"High", cvss:8.0,
+    desc:"Unbounded frame reassembly allows memory exhaustion.",
+    context:"Used only by the load-testing harness under `tools/`; never bundled into the server image.",
+    fix_now:false,
+    why:"Test tooling. It doesn't run in any deployed environment, so there's nothing to exploit." },
+
+  { pkg:"jwt-key-rotate", version:"1.0.9", ecosystem:"npm",
+    cve:"CVE-2025-37012", severity:"Medium", cvss:6.3,
+    desc:"Revoked signing keys remain in the verification cache for up to 24 hours.",
+    context:"This is the library behind the key rotation you run every time an engineer offboards.",
+    fix_now:true,
+    why:"Your revocation doesn't revoke for a day. That defeats the entire reason you rotate keys." },
+
+  { pkg:"pillow-thumbs", version:"2.4.6", ecosystem:"PyPI",
+    cve:"CVE-2025-30902", severity:"Critical", cvss:9.1,
+    desc:"Remote code execution via crafted ICC colour profiles during resize.",
+    context:"Runs on every avatar upload, including from unauthenticated signup.",
+    fix_now:true,
+    why:"Unauthenticated uploads reach the vulnerable decoder. Critical *and* reachable — drop everything." },
+
+  { pkg:"config-env-merge", version:"3.2.1", ecosystem:"npm",
+    cve:"CVE-2025-34887", severity:"High", cvss:7.3,
+    desc:"Prototype pollution through `__proto__` keys in merged configuration objects.",
+    context:"Merges only YAML files committed to the repository, at boot. No runtime or user input.",
+    fix_now:false,
+    why:"Every key comes from version control. There's no untrusted input to pollute with." },
+
+  { pkg:"audit-trail-sink", version:"1.7.0", ecosystem:"Go",
+    cve:"CVE-2025-39260", severity:"Low", cvss:3.9,
+    desc:"Events are dropped silently when the buffer fills, instead of applying backpressure.",
+    context:"Carries the compliance audit log you submit as SOC 2 evidence.",
+    fix_now:true,
+    why:"Silent gaps in an audit trail are a compliance failure. Low CVSS, expensive consequence." },
+
+  { pkg:"graphql-depth-shield", version:"2.0.7", ecosystem:"npm",
+    cve:"CVE-2025-41005", severity:"High", cvss:8.4,
+    desc:"The depth limit can be bypassed using cyclic fragment spreads.",
+    context:"It is the only guard protecting your public GraphQL API from expensive nested queries.",
+    fix_now:true,
+    why:"The bypass re-opens unbounded query cost on a public endpoint — a single request can pin the database." },
+
+  { pkg:"tfstate-lockbox", version:"0.8.3", ecosystem:"Go",
+    cve:"CVE-2025-28073", severity:"Critical", cvss:9.2,
+    desc:"Backend credentials are written to the log in plaintext at debug verbosity.",
+    context:"Debug logging is gated behind a compile-time flag that is off in every environment, including CI.",
+    fix_now:false,
+    why:"The log statement is compiled out. It cannot be emitted by any configuration you actually run." }
+];
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TUNABLES — booth staff can adjust round length and pacing here.
+   ════════════════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  roundSeconds:           60,    // length of a round
+  cardsPerRound:          18,    // 15–20 works well; capped at pool size
+  pauseTimerDuringReveal: false, // true = reading the explanation costs no clock
+  revealMsCorrect:        900,   // how long a "correct" reveal stays up
+  revealMsIncorrect:      2100,  // longer — the player needs to read the "why"
+  swipeThreshold:         110,   // px of horizontal drag that commits an answer
+  soundOn:                true,  // subtle confirmation tones
+  leaderboardSize:        10
+};
+
+const STORAGE_KEY = "endor_signal_noise_leaderboard_v1";
+
+/* ───────────────────────── helpers ───────────────────────── */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => (
+    { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]
+  ));
+}
+/* escape, then turn `code` into <code>code</code> */
+function fmt(s){ return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>"); }
+
+function shuffle(arr){
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ───────────────────────── sound (WebAudio, no assets) ───────────────────────── */
+let audioCtx = null;
+function tone(freq, ms, type = "sine", gain = 0.05){
+  if (!CONFIG.soundOn) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0, audioCtx.currentTime);
+    g.gain.linearRampToValueAtTime(gain, audioCtx.currentTime + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + ms / 1000);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + ms / 1000 + 0.02);
+  } catch (_) { /* audio is a nicety, never a blocker */ }
+}
+const sfxGood = () => { tone(660, 90, "sine", .05); setTimeout(() => tone(990, 130, "sine", .045), 85); };
+const sfxBad  = () => { tone(200, 220, "sawtooth", .035); };
+const buzz    = ms => { try { navigator.vibrate && navigator.vibrate(ms); } catch (_) {} };
+
+/* ───────────────────────── state ───────────────────────── */
+const state = {
+  deck: [], nodes: [], idx: 0,
+  answered: 0, correct: 0,
+  realTotal: 0, realCaught: 0,
+  noiseTotal: 0, noiseCaught: 0,
+  deadline: 0, remaining: CONFIG.roundSeconds * 1000,
+  raf: 0, running: false, locked: false,
+  revealTimer: 0,
+  lastSaved: null
+};
+
+/* ───────────────────────── screens ───────────────────────── */
+function show(id){
+  $$(".screen").forEach(s => s.classList.toggle("active", s.id === id));
+}
+
+/* ───────────────────────── leaderboard store ───────────────────────── */
+function loadBoard(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (_) { return []; }
+}
+function saveBoard(list){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+  catch (_) { /* private mode / quota — the session still works, just not persisted */ }
+}
+function rankBoard(list){
+  return list.slice().sort((a, b) =>
+    b.accuracy - a.accuracy ||
+    b.answered - a.answered ||
+    a.at - b.at
+  );
+}
+
+function renderBoard(){
+  const list = rankBoard(loadBoard()).slice(0, CONFIG.leaderboardSize);
+  const el = $("#board-list");
+  if (!list.length){
+    el.innerHTML = '<div class="empty">No scores yet.<br>Be the first — 60 seconds, 18 alerts.</div>';
+    return;
+  }
+  el.innerHTML = list.map((e, i) => {
+    const t = new Date(e.at);
+    const time = isNaN(t) ? "" : t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const meta = [e.email ? esc(e.email) : "", time].filter(Boolean).join(" · ");
+    return `<div class="row ${i < 3 ? "top" + (i + 1) : ""}${e.id === state.lastSaved ? " just" : ""}">
+      <div class="rank">${i === 0 ? "★" : "#" + (i + 1)}</div>
+      <div class="who">
+        <div class="nm">${esc(e.name || "Anonymous")}</div>
+        ${meta ? `<div class="mt">${meta}</div>` : ""}
+      </div>
+      <div class="cards">${e.correct}/${e.answered} cards</div>
+      <div class="acc">${e.accuracy}%</div>
+    </div>`;
+  }).join("");
+}
+
+/* ───────────────────────── round setup ───────────────────────── */
+function cardNode(card){
+  const el = document.createElement("article");
+  el.className = "card";
+  const sev = esc(String(card.severity).toLowerCase());
+  el.innerHTML = `
+    <div class="card-top">
+      <span class="eco">${esc(card.ecosystem)}</span>
+      <span class="badge sev-${sev}">${esc(card.severity)}</span>
+    </div>
+    <h2 class="pkg">${esc(card.pkg)}<span class="ver">@${esc(card.version)}</span></h2>
+    <div class="cve">${esc(card.cve)}</div>
+    <p class="desc">${fmt(card.desc)}</p>
+    <div class="meter">
+      <div class="meter-row"><span>CVSS base score</span><b>${Number(card.cvss).toFixed(1)} / 10</b></div>
+      <div class="meter-track"><i class="mf-${sev}" style="width:${clamp(Number(card.cvss) * 10, 0, 100)}%"></i></div>
+    </div>
+    <div class="ctx">
+      <div class="ctx-label">Usage in your repo</div>
+      <p>${fmt(card.context)}</p>
+    </div>
+    <div class="stamp stamp-fix">FIX NOW</div>
+    <div class="stamp stamp-ign">IGNORE</div>`;
+  return el;
+}
+
+function depthTransform(d){
+  // d = 0 for the active card, 1 and 2 for the ones fanned behind it.
+  // scaleX (not scale) so the vertical peek below the top card is exactly `lift`,
+  // independent of how tall the deck is on this screen.
+  const lift = d * 14;
+  const tilt = d === 0 ? 0 : (d % 2 ? 1.6 : -1.6);
+  return `translate3d(0, ${lift}px, 0) rotate(${tilt}deg) scaleX(${1 - d * 0.05})`;
+}
+
+function restack(){
+  state.nodes.forEach((n, i) => {
+    const d = i - state.idx;
+    if (d < 0) return;
+    n.classList.add("settle");
+    if (d > 2){
+      n.style.transform = depthTransform(3);
+      n.style.opacity = "0";
+      n.style.zIndex = "0";
+      n.style.pointerEvents = "none";
+      return;
+    }
+    n.style.transform = depthTransform(d);
+    n.style.opacity = "1";
+    n.style.zIndex = String(100 - d);
+    n.style.pointerEvents = d === 0 ? "auto" : "none";
+    n.style.filter = d === 0 ? "none" : `brightness(${1 - d * 0.18})`;
+  });
+}
+
+/* Cards are absolutely stacked, so the deck needs an explicit height. Measure the
+   tallest card in this round, cap it to the space available, and give every card
+   that height — the stack stays uniform and no card carries a block of dead space. */
+function sizeDeck(){
+  const deck = $("#deck");
+  if (!state.nodes.length) return;
+  const stage = deck.parentElement;
+  if (!stage.clientHeight) return;                       // screen not laid out yet
+  const room = Math.max(240, stage.clientHeight - 34);   // 34px leaves the fan visible
+  deck.style.height = "auto";
+  state.nodes.forEach(n => { n.style.minHeight = "0px"; });
+  let tallest = 0;
+  state.nodes.forEach(n => { tallest = Math.max(tallest, n.offsetHeight); });
+  // give the card real presence on tall screens without letting it outgrow the stage
+  const h = Math.min(Math.max(tallest, 260, Math.round(room * 0.42)), room);
+  deck.style.height = h + "px";
+  // maxHeight is the guard: on a very short viewport a card must never grow past
+  // the stage and cover the answer buttons.
+  state.nodes.forEach(n => { n.style.minHeight = h + "px"; n.style.maxHeight = room + "px"; });
+}
+
+function startRound(){
+  clearTimeout(state.revealTimer);
+  cancelAnimationFrame(state.raf);
+
+  const n = Math.min(CONFIG.cardsPerRound, CARDS.length);
+  state.deck        = shuffle(CARDS).slice(0, n);
+  state.idx         = 0;
+  state.answered    = 0;
+  state.correct     = 0;
+  state.realTotal   = 0;
+  state.realCaught  = 0;
+  state.noiseTotal  = 0;
+  state.noiseCaught = 0;
+  state.locked      = false;
+  state.running     = true;
+  state.remaining   = CONFIG.roundSeconds * 1000;
+  state.deadline    = performance.now() + state.remaining;
+  state.lastSaved   = null;
+
+  // the screen must be visible before the deck is measured, or every height reads 0
+  hideReveal(true);
+  updateHUD();
+  show("screen-game");
+
+  const deck = $("#deck");
+  deck.innerHTML = "";
+  state.nodes = state.deck.map(c => cardNode(c));
+  // append back-to-front so the first card is painted on top
+  for (let i = state.nodes.length - 1; i >= 0; i--) deck.appendChild(state.nodes[i]);
+  sizeDeck();
+  restack();
+  attachDrag();
+
+  state.raf = requestAnimationFrame(tick);
+}
+
+/* ───────────────────────── timer ───────────────────────── */
+function tick(now){
+  if (!state.running) return;
+  const left = Math.max(0, state.deadline - now);
+  const pct  = left / (CONFIG.roundSeconds * 1000);
+  $("#timer-fill").style.transform = `scaleX(${pct})`;
+  const secs = Math.ceil(left / 1000);
+  const tEl = $("#hud-time").firstElementChild;
+  if (tEl.textContent !== String(secs)) tEl.textContent = secs;
+  $("#hud").classList.toggle("low", secs <= 10);
+
+  if (left <= 0){ endRound("time"); return; }
+  state.raf = requestAnimationFrame(tick);
+}
+function pauseClock(){
+  if (!state.running) return;
+  state.remaining = Math.max(0, state.deadline - performance.now());
+  state.running = false;
+  cancelAnimationFrame(state.raf);
+}
+function resumeClock(){
+  if (state.running) return;
+  state.running = true;
+  state.deadline = performance.now() + state.remaining;
+  state.raf = requestAnimationFrame(tick);
+}
+
+function updateHUD(){
+  $("#hud-acc").textContent = state.answered
+    ? Math.round(state.correct / state.answered * 100) + "%"
+    : "—";
+  $("#hud-count").firstElementChild.textContent = state.answered;
+  $("#hud-count").lastChild.textContent = "/" + state.deck.length;
+}
+
+/* ───────────────────────── drag / swipe ───────────────────────── */
+let drag = null;
+
+function activeNode(){ return state.nodes[state.idx] || null; }
+
+function attachDrag(){
+  state.nodes.forEach(n => {
+    n.addEventListener("pointerdown", onDown);
+  });
+}
+
+function onDown(e){
+  if (state.locked) return;
+  const node = activeNode();
+  if (!node || e.currentTarget !== node) return;
+  if (e.button !== undefined && e.button !== 0) return;
+
+  node.classList.remove("settle");
+  drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, t0: performance.now(), node };
+  try { node.setPointerCapture(e.pointerId); } catch (_) {}
+  node.addEventListener("pointermove", onMove);
+  node.addEventListener("pointerup", onUp);
+  node.addEventListener("pointercancel", onUp);
+}
+
+function onMove(e){
+  if (!drag || e.pointerId !== drag.id) return;
+  drag.dx = e.clientX - drag.x0;
+  drag.dy = e.clientY - drag.y0;
+  paintDrag(drag.node, drag.dx, drag.dy);
+}
+
+function paintDrag(node, dx, dy){
+  const rot = clamp(dx / 16, -18, 18);
+  node.style.transform = `translate3d(${dx}px, ${dy * 0.35}px, 0) rotate(${rot}deg)`;
+  const p = clamp(Math.abs(dx) / CONFIG.swipeThreshold, 0, 1);
+  node.querySelector(".stamp-fix").style.opacity = dx > 0 ? p : 0;
+  node.querySelector(".stamp-ign").style.opacity = dx < 0 ? p : 0;
+}
+
+function onUp(e){
+  if (!drag || e.pointerId !== drag.id) return;
+  const { node, dx, t0 } = drag;
+  node.removeEventListener("pointermove", onMove);
+  node.removeEventListener("pointerup", onUp);
+  node.removeEventListener("pointercancel", onUp);
+  try { node.releasePointerCapture(e.pointerId); } catch (_) {}
+  drag = null;
+
+  const dt = Math.max(1, performance.now() - t0);
+  const velocity = Math.abs(dx) / dt;            // px per ms
+  const committed = Math.abs(dx) > CONFIG.swipeThreshold || (velocity > 0.55 && Math.abs(dx) > 40);
+
+  if (committed){
+    answer(dx > 0, node);
+  } else {
+    node.classList.add("settle");
+    node.style.transform = depthTransform(0);
+    node.querySelector(".stamp-fix").style.opacity = 0;
+    node.querySelector(".stamp-ign").style.opacity = 0;
+  }
+}
+
+/* ───────────────────────── answering ───────────────────────── */
+function answer(saidFixNow, node){
+  if (state.locked) return;
+  const card = state.deck[state.idx];
+  if (!card) return;
+
+  state.locked = true;
+  node = node || activeNode();
+
+  const right = (saidFixNow === !!card.fix_now);
+  state.answered++;
+  if (right) state.correct++;
+  if (card.fix_now){ state.realTotal++;  if (right) state.realCaught++; }
+  else            { state.noiseTotal++; if (right) state.noiseCaught++; }
+
+  // fly the card off in the direction of the answer
+  node.classList.remove("settle");
+  node.classList.add("fly");
+  node.style.pointerEvents = "none";
+  const dir = saidFixNow ? 1 : -1;
+  node.querySelector(saidFixNow ? ".stamp-fix" : ".stamp-ign").style.opacity = 1;
+  requestAnimationFrame(() => {
+    node.style.transform = `translate3d(${dir * (window.innerWidth * 0.9 + 200)}px, 40px, 0) rotate(${dir * 24}deg)`;
+    node.style.opacity = "0";
+  });
+  setTimeout(() => { if (node.parentNode) node.parentNode.removeChild(node); }, 420);
+
+  state.idx++;
+  restack();
+  updateHUD();
+
+  if (right){ sfxGood(); buzz(18); } else { sfxBad(); buzz([26, 40, 26]); }
+  flash(right);
+  showReveal(card, right, saidFixNow);
+}
+
+function flash(good){
+  const f = $("#flash");
+  f.className = "";
+  void f.offsetWidth;
+  f.classList.add("on", good ? "good" : "bad");
+  setTimeout(() => f.classList.remove("on"), 130);
+}
+
+function showReveal(card, right, saidFixNow){
+  const r = $("#reveal");
+  r.classList.remove("good", "bad");
+  r.classList.add(right ? "good" : "bad");
+  $("#rv-mark").textContent  = right ? "✓" : "✕";
+  $("#rv-title").textContent = right ? "Correct" : (saidFixNow ? "That one was noise" : "That one was real");
+  $("#rv-verdict").textContent = card.fix_now ? "FIX NOW" : "IGNORE";
+  $("#rv-why").innerHTML = fmt(card.why);
+  r.classList.add("show");
+
+  if (CONFIG.pauseTimerDuringReveal) pauseClock();
+
+  clearTimeout(state.revealTimer);
+  state.revealTimer = setTimeout(
+    nextCard,
+    right ? CONFIG.revealMsCorrect : CONFIG.revealMsIncorrect
+  );
+}
+
+function hideReveal(instant){
+  const r = $("#reveal");
+  r.classList.remove("show");
+  if (instant) r.classList.remove("good", "bad");
+}
+
+function nextCard(){
+  clearTimeout(state.revealTimer);
+  hideReveal();
+  state.locked = false;
+  if (state.idx >= state.deck.length){ endRound("deck"); return; }
+  // no-op when the clock was never paused; also recovers from a backgrounded tab
+  resumeClock();
+}
+
+/* ───────────────────────── end of round ───────────────────────── */
+function endRound(reason){
+  state.running = false;
+  state.locked = true;
+  cancelAnimationFrame(state.raf);
+  clearTimeout(state.revealTimer);
+  hideReveal(true);
+
+  const acc = state.answered ? Math.round(state.correct / state.answered * 100) : 0;
+
+  $("#end-acc").textContent      = acc;
+  $("#end-answered").textContent = state.answered + " / " + state.deck.length;
+  $("#end-real").textContent     = state.realCaught + "/" + state.realTotal;
+  $("#end-noise").textContent    = state.noiseCaught + "/" + state.noiseTotal;
+
+  const C = 2 * Math.PI * 52;
+  const ring = $("#ring-val");
+  ring.style.strokeDasharray = C.toFixed(1);
+  ring.style.strokeDashoffset = C.toFixed(1);
+  requestAnimationFrame(() => {
+    ring.style.strokeDashoffset = (C * (1 - acc / 100)).toFixed(1);
+  });
+
+  $("#end-verdict").textContent =
+    state.answered === 0 ? "No calls made — give it another go." :
+    acc === 100          ? "Flawless. Every call correct." :
+    acc >= 85            ? "Excellent triage instincts." :
+    acc >= 70            ? "Solid — you're reading past the severity score." :
+    acc >= 50            ? "Severity fooled you a few times." :
+                           "The noise won this round.";
+
+  $("#end-pitch").innerHTML =
+    `You caught <b>${acc}%</b> of real risks${
+      reason === "time" && state.idx < state.deck.length ? " before the clock ran out" : ""
+    }. Endor Labs customers cut alert noise by <b>~92%</b> automatically using reachability
+     analysis — so their teams only ever see what actually matters.`;
+
+  $("#save-status").textContent = "";
+  $("#in-name").value = "";
+  $("#in-email").value = "";
+  $("#btn-save").disabled = false;
+  $("#btn-save").textContent = "Save score";
+
+  show("screen-end");
+}
+
+function saveScore(){
+  const name  = $("#in-name").value.trim();
+  const email = $("#in-email").value.trim();
+  if (!state.answered){
+    $("#save-status").textContent = "Nothing to save — no cards answered.";
+    return;
+  }
+  const entry = {
+    id: "s" + Date.now() + Math.random().toString(36).slice(2, 7),
+    name: name || "Anonymous",
+    email,
+    accuracy: Math.round(state.correct / state.answered * 100),
+    answered: state.answered,
+    correct: state.correct,
+    at: Date.now()
+  };
+  const list = loadBoard();
+  list.push(entry);
+  saveBoard(list);
+  state.lastSaved = entry.id;
+
+  const rank = rankBoard(list).findIndex(e => e.id === entry.id) + 1;
+  $("#save-status").textContent =
+    `Saved — currently #${rank} of ${list.length}.`;
+  $("#btn-save").disabled = true;
+  $("#btn-save").textContent = "Saved ✓";
+  renderBoard();
+}
+
+/* ───────────────────────── booth display mode ───────────────────────── */
+function enterBooth(){
+  document.body.classList.add("booth");
+  $("#board-exit-booth").classList.remove("hidden");
+  if (location.hash !== "#board") location.hash = "#board";
+  renderBoard();
+}
+function exitBooth(){
+  document.body.classList.remove("booth");
+  $("#board-exit-booth").classList.add("hidden");
+  if (location.hash === "#board") history.replaceState(null, "", location.pathname + location.search);
+}
+
+/* ───────────────────────── wiring ───────────────────────── */
+$("#btn-start").addEventListener("click", startRound);
+$("#btn-again").addEventListener("click", startRound);
+$("#btn-board-play").addEventListener("click", () => { exitBooth(); startRound(); });
+
+$("#btn-board-from-start").addEventListener("click", () => { renderBoard(); show("screen-board"); });
+$("#btn-board-from-end").addEventListener("click",   () => { renderBoard(); show("screen-board"); });
+
+$("#btn-quit").addEventListener("click", () => {
+  state.running = false;
+  cancelAnimationFrame(state.raf);
+  clearTimeout(state.revealTimer);
+  hideReveal(true);
+  show("screen-start");
+});
+
+$("#btn-fix").addEventListener("click",    () => { if (!state.locked) answer(true); });
+$("#btn-ignore").addEventListener("click", () => { if (!state.locked) answer(false); });
+
+$("#reveal").addEventListener("click", nextCard);
+
+$("#btn-save").addEventListener("click", saveScore);
+$("#in-email").addEventListener("keydown", e => { if (e.key === "Enter") saveScore(); });
+$("#in-name").addEventListener("keydown",  e => { if (e.key === "Enter") $("#in-email").focus(); });
+
+$("#btn-booth").addEventListener("click", enterBooth);
+$("#board-exit-booth").addEventListener("click", exitBooth);
+
+$("#btn-clear").addEventListener("click", () => {
+  if (!loadBoard().length) return;
+  if (confirm("Clear all leaderboard scores?")){
+    saveBoard([]);
+    state.lastSaved = null;
+    renderBoard();
+  }
+});
+
+$("#btn-sound").addEventListener("click", e => {
+  CONFIG.soundOn = !CONFIG.soundOn;
+  e.currentTarget.textContent = CONFIG.soundOn ? "🔊" : "🔇";
+  if (CONFIG.soundOn) tone(880, 80);
+});
+
+/* keyboard fallback for laptop testing */
+document.addEventListener("keydown", e => {
+  const gaming = $("#screen-game").classList.contains("active");
+  if (gaming){
+    if (e.key === "ArrowRight"){ e.preventDefault(); if (!state.locked) answer(true); }
+    if (e.key === "ArrowLeft"){  e.preventDefault(); if (!state.locked) answer(false); }
+    if (e.key === " " || e.key === "Enter"){ if (state.locked) { e.preventDefault(); nextCard(); } }
+    if (e.key === "Escape") $("#btn-quit").click();
+    return;
+  }
+  if (e.key === "Enter" && $("#screen-start").classList.contains("active")) startRound();
+  if (e.key.toLowerCase() === "l" && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)){
+    renderBoard(); show("screen-board");
+  }
+});
+
+/* re-measure the deck when the tablet is rotated or the window resized */
+let resizeT = 0;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => {
+    if (!$("#screen-game").classList.contains("active")) return;
+    sizeDeck();
+    restack();
+  }, 120);
+});
+
+/* keep a second window's leaderboard in sync (same device, no backend) */
+window.addEventListener("storage", e => {
+  if (e.key === STORAGE_KEY) renderBoard();
+});
+setInterval(() => {
+  if ($("#screen-board").classList.contains("active")) renderBoard();
+}, 4000);
+
+/* stop the round if the tablet is backgrounded mid-play */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && state.running && !CONFIG.pauseTimerDuringReveal) pauseClock();
+  else if (!document.hidden && !state.running && $("#screen-game").classList.contains("active") && !state.locked) resumeClock();
+});
+
+/* block pinch-zoom and double-tap zoom on kiosk tablets */
+document.addEventListener("gesturestart", e => e.preventDefault());
+let lastTouch = 0;
+document.addEventListener("touchend", e => {
+  const now = Date.now();
+  if (now - lastTouch < 320) e.preventDefault();
+  lastTouch = now;
+}, { passive: false });
+
+/* deep link: signal-vs-noise.html#board opens straight into the big-screen board */
+if (location.hash === "#board"){
+  show("screen-board");
+  enterBooth();
+} else {
+  renderBoard();
+}
+</script>
+</body>
+</html>
