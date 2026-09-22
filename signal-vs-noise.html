@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <meta name="color-scheme" content="dark">
 <title>Signal vs. Noise — Endor Labs</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237b61ff'/%3E%3Cpath d='M9 19l7-7 7 7' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2331FF94'/%3E%3Cg fill='%23000'%3E%3Crect x='10' y='9' width='3.4' height='14'/%3E%3Crect x='10' y='9' width='12' height='3.2'/%3E%3Crect x='10' y='14.4' width='9' height='3'/%3E%3Crect x='10' y='19.8' width='12' height='3.2'/%3E%3C/g%3E%3C/svg%3E">
 <style>
 /* ============================================================================
    SIGNAL vs. NOISE — booth game for Endor Labs
@@ -13,30 +13,30 @@
    ========================================================================= */
 
 :root{
-  --bg:            #06070d;
-  --bg-2:          #0b0d18;
-  --surface:       #12152300;
-  --card:          #151928;
-  --card-2:        #1b2032;
-  --line:          rgba(255,255,255,.09);
-  --line-strong:   rgba(255,255,255,.16);
-  --text:          #eef0f7;
-  --text-dim:      #9aa2bd;
-  --text-faint:    #6b7492;
+  --bg:                 #000000;   /* el-moon-forest */
+  --bg-2:               #0A0F0D;   /* bg-subtle */
+  --surface:            #0E1512;   /* bg-elevated */
+  --card:               #0E1512;   /* bg-elevated */
+  --card-2:             #131C18;   /* one step above bg-elevated */
+  --line:               rgba(38,208,124,.16);  /* border-subtle */
+  --line-strong:        rgba(38,208,124,.32);
+  --text:               #FFFFFF;   /* fg / el-clear-space */
+  --text-dim:           #B7C3BE;   /* fg-muted */
+  --text-faint:         #6E7C78;   /* fg-subtle */
 
-  --accent:        #7b61ff;
-  --accent-2:      #4c8dff;
-  --accent-soft:   rgba(var(--accent-rgb),.16);
+  --accent:             #26D07C;   /* accent / el-green-moon */
+  --accent-2:           #00F078;   /* accent-bright / el-bright-green */
+  --accent-soft:  rgba(var(--accent-rgb),.16);
 
-  --fix:           #2ee6a8;
-  --fix-deep:      #0f9c72;
-  --ignore:        #ff5470;
-  --ignore-deep:   #c0203d;
+  --fix:                #31FF94;   /* el-neon-lime */
+  --fix-deep:           #00763B;   /* accent-soft */
+  --ignore:             #E9004A;   /* el-warning-pink */
+  --ignore-deep:        #DC1D29;   /* el-alert-red */
 
-  --crit:          #ff4d6a;
-  --high:          #ff8a3d;
-  --med:           #ffc53d;
-  --low:           #4ecdc4;
+  --crit:               #FF4444;   /* el-signal-red */
+  --high:               #FF8A3D;   /* kept: no orange in the brand ramp */
+  --med:                #FFC53D;   /* kept: no amber in the brand ramp */
+  --low:                #3FE1F3;   /* el-nebula-cyan */
 
   --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", "Fira Code", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -47,34 +47,34 @@
   /* ─── BRAND ─── change these to re-skin both files. ─────────────────────
      Keep each *-rgb token as bare "r,g,b" channels: they feed the rgba()
      tints used throughout, which need the channels rather than a hex.     */
-  --accent-rgb:        123,97,255;   /* must match --accent */
-  --accent-2-rgb:      76,141,255;   /* must match --accent-2 */
-  --accent-deep-rgb:   103,86,255;   /* primary-button glow */
-  --bg-rgb:            6,7,13;       /* must match --bg */
-  --bg-deep-rgb:       4,5,10;       /* modal scrim */
-  --accent-hi:         #8a73ff;      /* accent, hover */
-  --accent-2-hi:       #5d98ff;      /* accent-2, hover */
-  --grad-1:            #c3b6ff;      /* "Signal" wordmark, mid stop */
-  --grad-2:            #7ea7ff;      /* "Signal" wordmark, end stop */
-  --accent-pale:       #b9a9ff;      /* big-number gradient */
-  --accent-tint:       #c9bcff;      /* inline-code text */
-  --noise-ink:         #3d4460;      /* the dimmed word "Noise" */
+  --accent-rgb:         38,208,124;    /* must match --accent */
+  --accent-2-rgb:       0,240,120;     /* must match --accent-2 */
+  --accent-deep-rgb:    0,240,120;     /* el-glow-green */
+  --bg-rgb:             0,0,0;         /* must match --bg */
+  --bg-deep-rgb:        0,0,0;         /* modal scrim */
+  --accent-hi:          #31FF94;       /* el-neon-lime — accent, hover */
+  --accent-2-hi:        #84FFBB;       /* el-green-100 — accent-2, hover */
+  --grad-1:             #31FF94;       /* nebula headline, mid stop */
+  --grad-2:             #3FE1F3;       /* el-nebula-cyan — end stop */
+  --accent-pale:        #84FFBB;       /* el-green-100 */
+  --accent-tint:        #84FFBB;       /* inline-code text */
+  --noise-ink:          #24332C;       /* the dimmed word "Noise" */
 
   /* ─── SEVERITY / STATUS ─── channels for the badge and meter tints ───── */
-  --crit-rgb:          255,77,106;   /* must match --crit */
-  --high-rgb:          255,138,61;   /* must match --high */
-  --med-rgb:           255,197,61;   /* must match --med  */
-  --low-rgb:           78,205,196;   /* must match --low  */
-  --fix-rgb:           46,230,168;   /* must match --fix    */
-  --ignore-rgb:        255,84,112;   /* must match --ignore */
-  --fix-ink:           #c6ffe9;      /* text on a "fix" panel */
-  --ignore-ink:        #ffd0d8;      /* text on an "ignore" panel */
-  --ignore-hi:         #ff8195;      /* "incorrect" heading */
-  --reveal-ink:        #e3e7f2;      /* reveal body copy */
-  --on-fix:            #04110c;      /* ink on a solid fix fill */
-  --on-ignore:         #2a0410;      /* ink on a solid ignore fill */
-  --reveal-good-rgb:   12,42,33;     /* reveal panel, correct */
-  --reveal-bad-rgb:    48,12,22;     /* reveal panel, incorrect */
+  --crit-rgb:           255,68,68;     /* must match --crit */
+  --high-rgb:           255,138,61;    /* must match --high */
+  --med-rgb:            255,197,61;    /* must match --med  */
+  --low-rgb:            63,225,243;    /* must match --low  */
+  --fix-rgb:            49,255,148;    /* must match --fix    */
+  --ignore-rgb:         233,0,74;      /* must match --ignore */
+  --fix-ink:            #A8FFD0;       /* text on a "fix" panel */
+  --ignore-ink:         #FFC2D4;       /* text on an "ignore" panel */
+  --ignore-hi:          #FF6B92;       /* "incorrect" heading */
+  --reveal-ink:         #E6F0EA;       /* reveal body copy */
+  --on-fix:             #00140A;       /* fg-on-green */
+  --on-ignore:          #FFFFFF;       /* ink on a solid ignore fill */
+  --reveal-good-rgb:    0,38,24;       /* reveal panel, correct */
+  --reveal-bad-rgb:     48,2,18;       /* reveal panel, incorrect */
 }
 
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -120,23 +120,15 @@ body::after{
 @keyframes fade{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:none;} }
 
 /* ---------- shared bits ---------- */
-.brand{ display:flex; align-items:center; gap:11px; }
-.brand-mark{
-  width:30px; height:30px; flex:none;
-  border-radius:9px;
-  background:linear-gradient(140deg, var(--accent), var(--accent-2));
-  position:relative;
-  box-shadow:0 0 0 1px rgba(255,255,255,.14) inset, 0 6px 22px rgba(var(--accent-rgb),.4);
+.brand{ display:flex; align-items:baseline; gap:0; flex-wrap:wrap; }
+.wordmark{
+  font-weight:400; text-transform:uppercase; letter-spacing:.075em;
+  color:var(--text); white-space:nowrap;
 }
-.brand-mark::after{
-  content:""; position:absolute; inset:8px;
-  border-radius:3px;
-  border:2px solid rgba(255,255,255,.92);
-  border-right-color:transparent; border-bottom-color:transparent;
-  transform:rotate(45deg);
-}
-.brand-name{ font-weight:650; letter-spacing:-.01em; font-size:clamp(14px,2vw,17px); }
-.brand-name span{ color:var(--text-faint); font-weight:450; }
+.wordmark b{ font-weight:800; letter-spacing:.045em; }
+.brand-sub{ color:var(--text-faint); font-weight:450; white-space:nowrap; }
+.brand-sub::before{ content:"·"; margin:0 8px; opacity:.55; }
+.brand .wordmark, .brand .brand-sub{ font-size:clamp(13px,2vw,16px); }
 
 .eyebrow{
   font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase;
@@ -155,7 +147,7 @@ code{
 button{ font:inherit; color:inherit; border:0; background:none; cursor:pointer; }
 .btn{
   display:inline-flex; align-items:center; justify-content:center; gap:9px;
-  padding:15px 26px; border-radius:14px;
+  padding:15px 28px; border-radius:999px;
   font-weight:600; font-size:clamp(14px,1.7vw,16px); letter-spacing:.01em;
   border:1px solid var(--line-strong);
   background:rgba(255,255,255,.045);
@@ -166,11 +158,11 @@ button{ font:inherit; color:inherit; border:0; background:none; cursor:pointer; 
 .btn:active{ transform:scale(.97); }
 .btn-primary{
   background:linear-gradient(135deg, var(--accent), var(--accent-2));
-  border-color:transparent; color:#fff;
+  border-color:transparent; color:var(--on-fix);
   box-shadow:0 10px 34px rgba(var(--accent-deep-rgb),.42), 0 0 0 1px rgba(255,255,255,.1) inset;
 }
 .btn-primary:hover{ background:linear-gradient(135deg,var(--accent-hi),var(--accent-2-hi)); border-color:transparent; }
-.btn-lg{ padding:20px 46px; font-size:clamp(16px,2.2vw,19px); border-radius:17px; }
+.btn-lg{ padding:20px 48px; font-size:clamp(16px,2.2vw,19px); border-radius:999px; }
 .btn-ghost{ background:transparent; border-color:var(--line); color:var(--text-dim); }
 .btn-ghost:hover{ color:var(--text); }
 
@@ -245,10 +237,10 @@ button{ font:inherit; color:inherit; border:0; background:none; cursor:pointer; 
   transform-origin:left center;
   transition:background .4s ease;
 }
-.hud.low .timer i{ background:linear-gradient(90deg,#ff8a3d,var(--crit)); }
+.hud.low .timer i{ background:linear-gradient(90deg,var(--high),var(--crit)); }
 
 .icon-btn{
-  width:38px; height:38px; border-radius:11px; flex:none;
+  width:38px; height:38px; border-radius:999px; flex:none;
   display:grid; place-items:center;
   border:1px solid var(--line); background:rgba(255,255,255,.035);
   color:var(--text-faint); font-size:15px; line-height:1;
@@ -297,10 +289,10 @@ button{ font:inherit; color:inherit; border:0; background:none; cursor:pointer; 
   font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.11em; text-transform:uppercase;
   padding:6px 11px; border-radius:7px; white-space:nowrap;
 }
-.sev-critical{ color:var(--crit);  background:rgba(var(--crit-rgb),.13);  border:1px solid rgba(var(--crit-rgb),.42); }
-.sev-high    { color:var(--high);  background:rgba(var(--high-rgb),.13);  border:1px solid rgba(var(--high-rgb),.42); }
-.sev-medium  { color:var(--med);   background:rgba(var(--med-rgb),.12);  border:1px solid rgba(var(--med-rgb),.4); }
-.sev-low     { color:var(--low);   background:rgba(var(--low-rgb),.12);  border:1px solid rgba(var(--low-rgb),.4); }
+.sev-critical{ color:var(--crit);  background:rgba(var(--crit-rgb),.10);  border:1px solid rgba(var(--crit-rgb),.42); }
+.sev-high    { color:var(--high);  background:rgba(var(--high-rgb),.10);  border:1px solid rgba(var(--high-rgb),.42); }
+.sev-medium  { color:var(--med);   background:rgba(var(--med-rgb),.10);  border:1px solid rgba(var(--med-rgb),.4); }
+.sev-low     { color:var(--low);   background:rgba(var(--low-rgb),.10);  border:1px solid rgba(var(--low-rgb),.4); }
 
 .pkg{
   margin:0; font-family:var(--mono); font-weight:600; letter-spacing:-.015em;
@@ -358,7 +350,7 @@ button{ font:inherit; color:inherit; border:0; background:none; cursor:pointer; 
 }
 .ans{
   flex:1; display:flex; align-items:center; justify-content:center; gap:10px;
-  padding:clamp(15px,2.4vh,21px) 14px; border-radius:16px;
+  padding:clamp(15px,2.4vh,21px) 14px; border-radius:999px;
   font-weight:700; font-size:clamp(14px,2vw,17px); letter-spacing:.01em;
   border:1px solid; transition:transform .12s ease, box-shadow .2s ease, background .2s ease;
   touch-action:manipulation;
@@ -441,7 +433,7 @@ button{ font:inherit; color:inherit; border:0; background:none; cursor:pointer; 
 .split .k{ font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--text-faint); }
 .split .v{ font-size:clamp(18px,2.6vw,23px); font-weight:650; margin-top:4px; font-variant-numeric:tabular-nums; }
 .split.a .v{ color:var(--fix); }
-.split.b .v{ color:var(--accent-2); }
+.split.b .v{ color:var(--grad-2); }   /* nebula cyan — must not read as the green above */
 
 .pitch{
   max-width:60ch; margin:0; line-height:1.6; font-size:clamp(14px,1.9vw,17px); color:var(--text-dim);
@@ -462,7 +454,7 @@ button{ font:inherit; color:inherit; border:0; background:none; cursor:pointer; 
 .fields{ display:flex; gap:9px; flex-wrap:wrap; }
 .fields input{
   flex:1 1 170px; min-width:0;
-  padding:13px 14px; border-radius:11px; font:inherit; font-size:15px;
+  padding:13px 18px; border-radius:999px; font:inherit; font-size:15px;
   color:var(--text); background:rgba(0,0,0,.35);
   border:1px solid var(--line-strong); outline:none;
   transition:border-color .18s, box-shadow .18s;
@@ -573,7 +565,7 @@ body.booth #screen-board h2{ font-size:clamp(34px,6.5vw,76px); }
   .ctx-label{ margin-bottom:3px; }
   .ctx p{ font-size:12.5px; line-height:1.4; }
   .stamp{ top:30px; font-size:19px; padding:5px 11px; }
-  .ans{ padding:10px 12px; font-size:14px; border-radius:12px; }
+  .ans{ padding:10px 12px; font-size:14px; border-radius:999px; }
   .ans small{ display:none; }
   #reveal{ padding:11px 13px; border-radius:13px; }
   .rv-head{ font-size:14px; }
@@ -593,8 +585,8 @@ body.booth #screen-board h2{ font-size:clamp(34px,6.5vw,76px); }
   <!-- ══════════════════════ START ══════════════════════ -->
   <section id="screen-start" class="screen active">
     <div class="brand">
-      <div class="brand-mark"></div>
-      <div class="brand-name">Endor Labs <span>· Booth Challenge</span></div>
+      <span class="wordmark"><b>Endor</b> Labs</span>
+      <span class="brand-sub">Booth Challenge</span>
     </div>
 
     <div class="start-body">
@@ -668,8 +660,8 @@ body.booth #screen-board h2{ font-size:clamp(34px,6.5vw,76px); }
   <!-- ══════════════════════ END ══════════════════════ -->
   <section id="screen-end" class="screen">
     <div class="brand">
-      <div class="brand-mark"></div>
-      <div class="brand-name">Endor Labs <span>· Round complete</span></div>
+      <span class="wordmark"><b>Endor</b> Labs</span>
+      <span class="brand-sub">Round complete</span>
     </div>
 
     <div class="end-scroll">
@@ -677,8 +669,8 @@ body.booth #screen-board h2{ font-size:clamp(34px,6.5vw,76px); }
         <svg viewBox="0 0 120 120" aria-hidden="true">
           <defs>
             <linearGradient id="ringgrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#7b61ff"/>
-              <stop offset="100%" stop-color="#2ee6a8"/>
+              <stop offset="0%"   style="stop-color:var(--accent)"/>
+              <stop offset="100%" style="stop-color:var(--grad-2)"/>
             </linearGradient>
           </defs>
           <circle class="track" cx="60" cy="60" r="52"/>
@@ -726,8 +718,8 @@ body.booth #screen-board h2{ font-size:clamp(34px,6.5vw,76px); }
     <div class="board-head">
       <div>
         <div class="brand">
-          <div class="brand-mark"></div>
-          <div class="brand-name">Endor Labs <span>· Signal vs. Noise</span></div>
+          <span class="wordmark"><b>Endor</b> Labs</span>
+          <span class="brand-sub">Signal vs. Noise</span>
         </div>
         <h2>Leaderboard</h2>
       </div>

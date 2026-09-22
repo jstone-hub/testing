@@ -134,6 +134,66 @@ current marketing before the page goes anywhere public.
 
 ---
 
+## Branding
+
+Both files use the Endor Labs design system. Every colour resolves from one labelled
+block at the top of each file's `:root` — a **BRAND** group and a **SEVERITY / STATUS**
+group. Nothing brand-coloured is hardcoded anywhere else in either stylesheet, so a
+future palette change is an edit to those two blocks.
+
+`rgba()` needs channels rather than a hex, so each tinted colour carries a companion
+`*-rgb` token. The comments flag which pairs must stay in sync — change `--accent` and
+you must change `--accent-rgb` to match.
+
+### Mapping
+
+| Design system | Used for |
+| --- | --- |
+| `--accent` `#26D07C` (el-green-moon) | primary accent: eyebrows, CVE ids, focus rings, hairlines |
+| `--accent-bright` `#00F078` | CTA gradient end, glow |
+| `--el-neon-lime` `#31FF94` | "Fix Now", correct answers, hover states |
+| `--el-nebula-cyan` `#3FE1F3` | gradient headline end stop, Low severity, "noise filtered" stat |
+| `--el-warning-pink` `#E9004A` | "Ignore", incorrect answers |
+| `--el-signal-red` `#FF4444` | Critical severity |
+| `--el-moon-forest` `#000000` / `--bg-subtle` / `--bg-elevated` | page, panel and card surfaces |
+| `--fg-muted` `#B7C3BE` / `--fg-subtle` `#6E7C78` | secondary and tertiary text |
+| `--border-subtle` `rgba(38,208,124,.2)` | the green-tinted hairlines, at .16 / .32 |
+
+Buttons are full pills with black ink on green, matching the site's *Book a Demo*.
+The wordmark is set as type — **ENDOR** at weight 800, LABS at 400, uppercase.
+
+### Three deliberate deviations
+
+1. **High and Medium severity stay orange and amber.** The brand ramp has no orange,
+   and the severity scale has to read red → orange → amber → cyan for players to parse
+   it at a glance. Substituting brand pinks would break the ordering — the trap cards
+   depend on "Critical" reading as alarming instantly.
+2. **Code still uses a monospace stack.** The system specifies Switzer for Primary,
+   System *and* Mono. Switzer isn't monospaced, and package names, CVE ids and the
+   score columns need fixed-width to line up — losing that costs the whole
+   scanner-UI texture the game trades on.
+3. **The typeface is the system stack** (SF Pro on iPad, Segoe on Windows) rather than
+   Switzer, per the brief. Switzer is free from Fontshare — drop the `.woff2` in, add
+   an `@font-face`, and change `--sans` to make it exact.
+
+### Still a placeholder
+
+**The logo.** The design system lists `brand-logos`, `brand-lockups` and
+`brand-auri-logos`, but no files came with it. The wordmark is currently set in the
+system typeface rather than the real logotype, and the favicon is a lime tile with a
+drawn "E". Both are stand-ins. Drop the real SVG in and replace the five `.wordmark`
+spans (two in `index.html`, three in `signal-vs-noise.html`).
+
+### Verification
+
+- Every text/background pair checked against WCAG: 22 pairs, all passing. The tightest
+  is the Critical badge at 4.65:1 — the severity badge fills sit at 10% opacity
+  specifically so the brand red clears 4.5:1 as small text.
+- The re-skin's structure was proven neutral first: the tokenisation commit before it
+  compared 113,490 computed style values across 11 views and changed nothing.
+
+---
+
 ## Note on the content
 
 Every package name, CVE identifier, version and finding in this game is **invented**.
