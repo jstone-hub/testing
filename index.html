@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title>Signal vs. Noise — Endor Labs</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237b61ff'/%3E%3Cpath d='M9 19l7-7 7 7' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta name="description" content="A 60-second vulnerability triage game. Tell the real, exploitable risks from the noise — and find out why severity alone is a bad signal.">
 <style>
 /* ============================================================================
@@ -420,6 +421,17 @@ footer{ border-top:1px solid var(--line); margin-top:clamp(48px,8vh,88px); paddi
   background:var(--bg); box-shadow:0 30px 90px -30px #000;
   min-height:0;
 }
+#game-frame[hidden]{ display:none; }
+/* shown when the game file can't be loaded, so Play is never a dead button */
+#play-fallback{
+  flex:1; min-height:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px; text-align:center;
+  padding:32px 24px; border-radius:clamp(0px,1.4vw,16px);
+  border:1px solid var(--line-strong); background:var(--surface);
+}
+#play-fallback[hidden]{ display:none; }
+#play-fallback h3{ font-size:clamp(19px,2.6vw,25px); }
+#play-fallback p{ color:var(--text-dim); max-width:52ch; font-size:15px; line-height:1.6; }
 @media (max-width:640px){
   #play{ padding:0; }
   .play-bar{ padding:10px 12px 0; }
@@ -714,6 +726,14 @@ footer{ border-top:1px solid var(--line); margin-top:clamp(48px,8vh,88px); paddi
     <button class="btn" id="play-close">Close ✕</button>
   </div>
   <iframe id="game-frame" title="Signal vs. Noise"></iframe>
+  <div id="play-fallback" hidden>
+    <h3>The game file isn't next to this page</h3>
+    <p>
+      This page loads the game from <code>signal-vs-noise.html</code> in the same folder.
+      Keep the two files together — or open the game directly.
+    </p>
+    <a class="btn btn-primary btn-lg" href="signal-vs-noise.html">Open the game →</a>
+  </div>
 </div>
 
 <script>
@@ -722,10 +742,40 @@ footer{ border-top:1px solid var(--line); margin-top:clamp(48px,8vh,88px); paddi
 const GAME_URL = "signal-vs-noise.html";
 const overlay  = document.getElementById("play");
 const frame    = document.getElementById("game-frame");
+const fallback = document.getElementById("play-fallback");
 let lastFocus  = null;
+let watcher    = 0;
+
+/* Did the game actually load in the frame? If the file isn't beside this page
+   the frame just sits there empty and never fires an error, so check for one of
+   the game's own elements rather than trusting the load event. */
+function frameLoaded(){
+  try {
+    const d = frame.contentDocument;
+    if (!d) return false;                       // nothing there, or blocked
+    return !!d.getElementById("screen-start");  // the game's start screen
+  } catch (_) {
+    return true;   // cross-origin: we can't look inside, so assume it's fine
+  }
+}
+
+function watchFrame(){
+  let tries = 0;
+  clearInterval(watcher);
+  watcher = setInterval(() => {
+    if (frameLoaded()){ clearInterval(watcher); return; }
+    if (++tries >= 6){                          // ~1.8s grace, then explain
+      clearInterval(watcher);
+      frame.hidden = true;
+      fallback.hidden = false;
+    }
+  }, 300);
+}
 
 function openPlay(trigger){
   lastFocus = trigger || document.activeElement;
+  frame.hidden = false;
+  fallback.hidden = true;
   // set src on open so the game (and its timer) only start when asked for
   if (frame.getAttribute("src") !== GAME_URL) frame.setAttribute("src", GAME_URL);
   overlay.classList.add("open");
@@ -733,9 +783,11 @@ function openPlay(trigger){
   // focus the close button, not the frame: once focus is inside the iframe the
   // parent stops seeing Escape, and in there Escape is the game's own "end round"
   setTimeout(() => document.getElementById("play-close").focus(), 60);
+  watchFrame();
 }
 
 function closePlay(){
+  clearInterval(watcher);
   overlay.classList.remove("open");
   document.body.style.overflow = "";
   frame.removeAttribute("src");           // stop the round, reset for next player
